@@ -1,0 +1,15 @@
+exit 1
+
+# https://download.geofabrik.de/europe/germany.html
+cd /tmp
+curl --proto '=https' --tlsv1.2 --fail --location --max-redirs 3 'https://download.geofabrik.de/europe/germany-latest.osm.pbf'
+curl -s --proto '=https' --tlsv1.2 --fail 'https://download.geofabrik.de/europe/germany-latest.osm.pbf.md5' | md5sum -c -
+
+cd …/extract/
+mkdir -p build
+cd build
+cmake .. -G Ninja  # or make or whatever
+ninja
+./extract /tmp/germany-latest.osm.pbf all.monosmdom.json
+scp all.monosmdom.json monosmdom-host:
+firefox 'https://my.monosmdom.instance.localhost/admin/confirm_upload/'

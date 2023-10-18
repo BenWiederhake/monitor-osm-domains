@@ -14,10 +14,10 @@ Sure, one could just click a link, see an error, and call it "stale". But that's
 
 ## Components
 
-`extract` runs on a `.pbf` extract of OSM data, and produces a `.monosmdom.json` file containing information about which URLs shall be monitored, and which nodes/ways/relations are affected by that. This component is meant to be run very rarely, and manually.
+`extract` runs on a `.pbf` extract of OSM data, and produces a `*.monosmdom.json` file containing information about which URLs shall be monitored, and which nodes/ways/relations are affected by that. This component is meant to be run very rarely, and manually.
 
 `monosmdom_server` runs a Django server that automates most of the rest:
-- Reading a given `.monosmdom.json` file, and updating the internal list of URLs-to-be-monitored.
+- Reading a given `*.monosmdom.json` file, and updating the internal list of URLs-to-be-monitored.
 - Crawling all URLs, recording the results, and making sure the generated traffic is very low.
 - Providing a web UI with the results.
 
