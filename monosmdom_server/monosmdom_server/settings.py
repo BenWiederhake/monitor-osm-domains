@@ -28,6 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = secret_config.SECRET_KEY
 DEBUG = secret_config.DEBUG
 ALLOWED_HOSTS = secret_config.ALLOWED_HOSTS
+FORCE_SCRIPT_NAME = secret_config.PROJECT_SUBPATH
 
 SECURE_HSTS_SECONDS = secret_config.SECURE_HSTS_SECONDS
 SECURE_HSTS_INCLUDE_SUBDOMAINS = secret_config.SECURE_HSTS_INCLUDE_SUBDOMAINS
