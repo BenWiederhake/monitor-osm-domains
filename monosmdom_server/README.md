@@ -37,6 +37,7 @@ be used to query for problems and check which actions should be taken, if any.
   ```
   $ pip install -r requirements.txt
   ```
+  If you have problems later on, try `pip install --upgrade psycopg[binary]`
 - Copy the file `secret_config_template.py` to `secret_config.py`, and fill in the connection details from above.
   At this point, you can check whether Django can connect with Postgresql:
   ```
