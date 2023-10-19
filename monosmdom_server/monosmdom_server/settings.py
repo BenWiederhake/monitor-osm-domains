@@ -28,7 +28,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = secret_config.SECRET_KEY
 DEBUG = secret_config.DEBUG
 ALLOWED_HOSTS = secret_config.ALLOWED_HOSTS
-FORCE_SCRIPT_NAME = secret_config.PROJECT_SUBPATH
+STATIC_ROOT = secret_config.STATIC_ROOT
+STATIC_URL = secret_config.STATIC_URL
+AT_SUBPATH = secret_config.AT_SUBPATH
 
 SECURE_HSTS_SECONDS = secret_config.SECURE_HSTS_SECONDS
 SECURE_HSTS_INCLUDE_SUBDOMAINS = secret_config.SECURE_HSTS_INCLUDE_SUBDOMAINS
@@ -127,11 +129,6 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
-STATIC_URL = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

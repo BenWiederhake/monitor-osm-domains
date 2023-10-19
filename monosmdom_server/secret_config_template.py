@@ -2,7 +2,9 @@ SECRET_ADMIN_PATH = "siteadmin/"
 SECRET_KEY = "INSECURE_REGENERATE_ME_I8cX7SaKl3HthaGroMnlDl2Bg5d4wpUsB5j33UqoYAC82brx9Pk_tEuGimuNIR0c"
 DEBUG = True
 ALLOWED_HOSTS = []
-PROJECT_SUBPATH = "/INSECURE_REGENERATE_ME_zmPROvX1"
+AT_SUBPATH = "foo/bar"  # No slashes on either side
+STATIC_ROOT = f"/var/html/www.yourdomain.tld/{AT_SUBPATH}/static"  # Yes leading, no trailing slash
+STATIC_URL = f"/{AT_SUBPATH}/static/"  # Yes leading, yes trailing slash
 
 SECURE_HSTS_SECONDS = 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
