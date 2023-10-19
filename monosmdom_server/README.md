@@ -8,6 +8,7 @@ be used to query for problems and check which actions should be taken, if any.
 
 - [Install](#install)
 - [Usage](#usage)
+- [Structure](#structure)
 - [Performance](#performance)
 - [TODOs](#todos)
 - [NOTDOs](#notdos)
@@ -28,12 +29,12 @@ be used to query for problems and check which actions should be taken, if any.
       $ source ./venv/bin/activate
 - Install required packages:
       $ pip install -r requirements.txt
-- Copy the file `secrets-template.py` to `secrets.py`, and fill in the connection details from above.
+- Copy the file `secret_config_template.py` to `secret_config.py`, and fill in the connection details from above.
   At this point, you can check whether Django can connect with Postgresql:
       $ ./manage.py dbshell
 - Populate the database and server files:
       $ ./manage.py migrate
-      $ ./manage.py create_admin_user
+      $ ./manage.py createsuperuser
       $ ./manage.py collectstatic
 
 Updates work similarly:
@@ -49,6 +50,15 @@ Before actually going into public production, you should take a close look at th
     $ ./manage.py check --deploy
 
 I'll probably follow this setup very closely: https://lab.uberspace.de/guide_django/
+
+## Structure
+
+I'll try to adhere to the Django philosophy this time, i.e.: The "project" is just a collection of "apps", and all functionality is written in separate "apps" that could, in theory, be switched on and off.
+
+- storage: data models, data migrations, intake script, export
+- webui: auth models, auth data, inspection
+- crawler: actual activity
+- (FUTURE) osmbot: submit changesets to OSM
 
 ## Performance
 

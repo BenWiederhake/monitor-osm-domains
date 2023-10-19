@@ -189,6 +189,7 @@ def simplify_semantically(by_regexed_url, disasters):
             disaster.extend(f"contains login information, not crawling", occs)
             continue
         if parts.port is not None:
+            # Technically, using ports is not disastrous – but still highly questionable.
             disaster = disasters[parse_url]
             disaster.extend(f"refusing to use forced port {parts.port}", occs)
             continue
@@ -204,6 +205,7 @@ def simplify_semantically(by_regexed_url, disasters):
             disaster.extend(f"disagreeing {netloc=} and {hostname=}", occs)
             continue
         hostname = hostname.strip(".")
+        # FIXME: Shouldn't check for bare IPs here, as these are not necessarily disastrous.
         if RE_BARE_IP.match(hostname):
             disaster = disasters[parse_url]
             disaster.extend(f"{hostname=} looks like a bare IP", occs)
