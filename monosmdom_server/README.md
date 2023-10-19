@@ -17,18 +17,18 @@ be used to query for problems and check which actions should be taken, if any.
 ## Install
 
 - Install required system packages. For example, on Debian:
-      $ apt install python3 postgresql psql
+       $ apt install python3 postgresql psql
 - Get postgres up and running. You might find [these instructions](https://www.postgresql.org/docs/14/client-authentication.html) useful.
   Create a database of some name, for example `monosmdom`.
   You can check your progress with the `psql` tool.
-      > create role ACTUAL_LOCAL_USERNAME with login createdb encrypted password 'SECRETPASSWORDFORTHISDATABASE';`
-      > create database monosmdom owner ACTUAL_LOCAL_USERNAME;
-      > alter database monosmdom set timezone = 'UTC';
+        > create role ACTUAL_LOCAL_USERNAME with login createdb encrypted password 'SECRETPASSWORDFORTHISDATABASE';`
+        > create database monosmdom owner ACTUAL_LOCAL_USERNAME;
+        > alter database monosmdom set timezone = 'UTC';
 - Set up a local virtualenv. For example, with the `venv` module:
-      $ python3 -m venv .venv
-      $ source ./venv/bin/activate
+         $ python3 -m venv .venv
+         $ source ./venv/bin/activate
 - Install required packages:
-      $ pip install -r requirements.txt
+          $ pip install -r requirements.txt
 - Copy the file `secret_config_template.py` to `secret_config.py`, and fill in the connection details from above.
   At this point, you can check whether Django can connect with Postgresql:
       $ ./manage.py dbshell
