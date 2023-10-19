@@ -101,6 +101,3 @@ class OccurrenceInOsm(models.Model):
     osm_tag_value = models.CharField(max_length=300)
     # Note that duplicates are meaningful (e.g. "website=https://foo.com;https://foo.com"), although not very informative.
     # These will be completely wiped and re-written on every import anyway.
-
-#    with connection.cursor() as cursor:
-#        cursor.execute("VACUUM ANALYZE")
