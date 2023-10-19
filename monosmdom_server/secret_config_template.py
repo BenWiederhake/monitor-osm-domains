@@ -1,7 +1,8 @@
 SECRET_ADMIN_PATH = "siteadmin/"
 SECRET_KEY = "INSECURE_REGENERATE_ME_I8cX7SaKl3HthaGroMnlDl2Bg5d4wpUsB5j33UqoYAC82brx9Pk_tEuGimuNIR0c"
 DEBUG = True
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["my.domain.example"]
+CSRF_TRUSTED_ORIGINS = ["https://my.domain.example"]
 AT_SUBPATH = "foo/bar"  # No slashes on either side
 STATIC_ROOT = f"/var/html/www.yourdomain.tld/{AT_SUBPATH}/static"  # Yes leading, no trailing slash
 STATIC_URL = f"/{AT_SUBPATH}/static/"  # Yes leading, yes trailing slash

@@ -28,6 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = secret_config.SECRET_KEY
 DEBUG = secret_config.DEBUG
 ALLOWED_HOSTS = secret_config.ALLOWED_HOSTS
+CSRF_TRUSTED_ORIGINS = secret_config.CSRF_TRUSTED_ORIGINS
 STATIC_ROOT = secret_config.STATIC_ROOT
 STATIC_URL = secret_config.STATIC_URL
 AT_SUBPATH = secret_config.AT_SUBPATH
@@ -40,7 +41,6 @@ SECURE_SSL_REDIRECT = secret_config.SECURE_SSL_REDIRECT
 SESSION_COOKIE_SECURE = secret_config.SESSION_COOKIE_SECURE
 CSRF_COOKIE_SECURE = secret_config.CSRF_COOKIE_SECURE
 X_FRAME_OPTIONS = 'DENY'
-
 
 # Application definition
 
