@@ -10,6 +10,9 @@ mkdir -p build
 cd build
 cmake .. -G Ninja  # or make or whatever
 ninja
-./extract /tmp/germany-latest.osm.pbf all.monosmdom.json
+./extract /tmp/germany-latest.osm.pbf raw.monosmdom.json
+./cleanup.py raw.monosmdom.json all.monosmdom.json
 scp all.monosmdom.json monosmdom-host:
+# Alternatively, use something like gzip --keep -c all.monosmdom.json | ssh 'gunzip > all.monosmdom.json' or something like that.
+# I didn't try that alternative command yet, it probably contains a syntax error.
 firefox 'https://my.monosmdom.instance.localhost/admin/confirm_upload/'
