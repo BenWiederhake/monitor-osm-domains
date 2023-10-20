@@ -183,8 +183,10 @@ def simplified_url_or_disaster_reason(parse_url):
     netloc = parts.netloc.lower()
     if hostname is None or netloc != hostname:
         return None, f"disagreeing {netloc=} and {hostname=}"
-    if '..' in hostname:
+    if ".." in hostname:
         return None, r"double-dot in hostname"
+    if "http" in hostname:
+        return None, r"suspicious 'http' in hostname"
     hostname = hostname.strip(".")
     # FIXME: Shouldn't check for bare IPs here, as these are not necessarily disastrous.
     if RE_BARE_IP.match(hostname):
