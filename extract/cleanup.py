@@ -160,71 +160,59 @@ def simplify_regex(old_findings, disasters):
     return by_regexed_url
 
 
+def simplified_url_or_disaster_reason(parse_url):
+    if '\\' in parse_url:
+        return None, r"weird character b'\\'"
+    if ' ' in parse_url:
+        return None, r"weird character b' '"
+    parts = urllib.parse.urlsplit(parse_url)
+    # scheme, netloc, path, query, fragment
+    if parts.scheme not in ["http", "https"]:
+        return None, f"unusual scheme {parts.scheme}"
+    if parts.username is not None or parts.password is not None:
+        return None, f"contains login information, not crawling"
+    if parts.port is not None:
+        # Technically, using ports is not disastrous – but still highly questionable.
+        return None, f"refusing to use forced port {parts.port}"
+    hostname = parts.hostname
+    if hostname is not None:
+        # Despite the documentation, the hostname is NOT always lowercase. Example:
+        # >>> urllib.parse.urlsplit("https://www.geb%C3%A4udereinigung.de/").netloc
+        # 'www.geb%C3%A4udereinigung.de'
+        hostname = hostname.lower()
+    netloc = parts.netloc.lower()
+    if hostname is None or netloc != hostname:
+        return None, f"disagreeing {netloc=} and {hostname=}"
+    if '..' in hostname:
+        return None, r"double-dot in hostname"
+    hostname = hostname.strip(".")
+    # FIXME: Shouldn't check for bare IPs here, as these are not necessarily disastrous.
+    if RE_BARE_IP.match(hostname):
+        return None, f"{hostname=} looks like a bare IP"
+    unsplit_url = urllib.parse.urlunsplit(parts)
+    if unsplit_url != parse_url:
+        # FIXME: Should report this somewhere else.
+        print("WARNING: Url splitting probably lost some data!")
+        print(f"    Before: >>{parse_url}<<")
+        print(f"    After : >>{unsplit_url}<<")
+    # Keep query without any checks, and reset fragment.
+    simplified_url = urllib.parse.urlunsplit((parts.scheme, hostname, parts.path, parts.query, ""))
+    return simplified_url, None
+
+
 def simplify_semantically(by_regexed_url, disasters):
     by_simplified_url = defaultdict(list)  # Simplified URL string to list of occurrence-objects
     all_seen_chars = Counter()
     usable_hostnames = set()
     for parse_url, occs in by_regexed_url.items():
-        if '\\' in parse_url:
+        simplified_url, disaster_reason = simplified_url_or_disaster_reason(parse_url)
+        assert (simplified_url is None) != (disaster_reason is None), parse_url
+        if disaster_reason is not None:
             disaster = disasters[parse_url]
-            disaster.extend(r"weird character b'\\'", occs)
-            continue
-        if ' ' in parse_url:
-            disaster = disasters[parse_url]
-            disaster.extend(r"weird character b' '", occs)
-            continue
-        if '..' in parse_url:
-            disaster = disasters[parse_url]
-            disaster.extend(r"double-dot in hostname", occs)
+            disaster.extend(disaster_reason, occs)
             continue
         all_seen_chars.update(parse_url)
-        parts = urllib.parse.urlsplit(parse_url)
-        # scheme, netloc, path, query, fragment
-        if parts.scheme not in ["http", "https"]:
-            disaster = disasters[parse_url]
-            disaster.extend(f"unusual scheme {parts.scheme}", occs)
-            continue
-        if parts.username is not None or parts.password is not None:
-            disaster = disasters[parse_url]
-            disaster.extend(f"contains login information, not crawling", occs)
-            continue
-        if parts.port is not None:
-            # Technically, using ports is not disastrous – but still highly questionable.
-            disaster = disasters[parse_url]
-            disaster.extend(f"refusing to use forced port {parts.port}", occs)
-            continue
-        hostname = parts.hostname
-        if hostname is not None:
-            # Despite the documentation, the hostname is NOT always lowercase. Example:
-            # >>> urllib.parse.urlsplit("https://www.geb%C3%A4udereinigung.de/").netloc
-            # 'www.geb%C3%A4udereinigung.de'
-            hostname = hostname.lower()
-        netloc = parts.netloc.lower()
-        if hostname is None or netloc != hostname:
-            disaster = disasters[parse_url]
-            disaster.extend(f"disagreeing {netloc=} and {hostname=}", occs)
-            continue
-        hostname = hostname.strip(".")
-        # FIXME: Shouldn't check for bare IPs here, as these are not necessarily disastrous.
-        if RE_BARE_IP.match(hostname):
-            disaster = disasters[parse_url]
-            disaster.extend(f"{hostname=} looks like a bare IP", occs)
-            continue
-        # FIXME: Check for "localhost" or other suspicious IPs
-        usable_hostnames.add(hostname)
-        # Keep query without any checks, and reset fragment.
-        unsplit_url = urllib.parse.urlunsplit(parts)
-        if unsplit_url != parse_url:
-            print("WARNING: Url splitting probably lost some data!")
-            print(f"    Before: >>{parse_url}<<")
-            print(f"    After : >>{unsplit_url}<<")
-        simplified_url = urllib.parse.urlunsplit((parts.scheme, hostname, parts.path, parts.query, ""))
         by_simplified_url[simplified_url].extend(occs)
-    print(f"Writing {len(usable_hostnames)} unique hostnames to /tmp/hostnames.lst")
-    with open("/tmp/hostnames.lst", "w") as fp:
-        for hostname in sorted(usable_hostnames):
-            fp.write(hostname)
-            fp.write("\n")
     return by_simplified_url, all_seen_chars
 
 
