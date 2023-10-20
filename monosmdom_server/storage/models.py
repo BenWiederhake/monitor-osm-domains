@@ -39,19 +39,19 @@ class Domain(models.Model):
     # Domain names can be insanely long. OSM Germany contains a working domain name with 76 characters!
     domain_name = models.CharField(max_length=200, db_index=True)
     last_contacted = models.DateTimeField(db_index=True, default=None, null=True)
-    # Could be ignored due to regex, or because all crawlable URLs are legacy or something.
-    is_ignored = models.BooleanField(db_index=True)
 
 
 class Url(models.Model):
     # URLs can be insanely long, but there also seems to be a limit of 255 characters. Use that!
     # We overshoot by a bit, just for extra safety margin in case of UTF-8 counting weirdness.
     url = models.CharField(max_length=300)
-    # This may be False if an otherwise crawlable URL disappears in a new import of OSM data:
-    in_osm_data = models.BooleanField()
-    # FIXME: Cannot express constraint in SQL; exactly one of the following must be true for each "Url":
+    # Exactly one of the following must be true for each "Url":
     # - The "Url" has one-or-more "DisasterUrl"s associated with it, and zero "CrawlableUrl"s.
+    #   This happens when a URL occurs in the OSM dataset, but "obviously" cannot work.
     # - The "Url" has zero "DisasterUrl"s associated with it, and exactly one "CrawlableUrl"s.
+    #   This happens when a URL occurs in the OSM dataset, and might work.
+    # - The "Url" has zero "DisasterUrl"s associated with it, and also zero "CrawlableUrl"s.
+    #   This happens when a URL is outdated, or was discovered as part of a redirection chain.
     # Note that this is NOT a case of model inheritance.
 
 
