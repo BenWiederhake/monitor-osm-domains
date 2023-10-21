@@ -60,7 +60,7 @@ def get_cached_psl(*, _magic=[]):
     return _magic[0]
 
 
-def get_strict_sld_of_url_or_none_and_interest(url):
+def get_strict_sld_and_interest(url):
     """
     Sorry for mixing two queries in the same function, but I want to avoid parsing the URL needlessly often.
     Note that we must use hostname for the interest check, and not the second-level-domain.
@@ -126,23 +126,25 @@ def try_crawlable_url(url_string):
     """
     # Note that we don't apply regex-fixups to redirects, since these should absolutely be valid URLs already.
     # === Syntactical check:
-    simplified_url, disaster_reason = extract_cleanup.simplified_url_or_disaster_reason(raw_url)
+    simplified_url, disaster_reason = extract_cleanup.simplified_url_or_disaster_reason(url_string)
     assert (simplified_url is None) != (disaster_reason is None)
     if simplified_url is not None:
         url_string = simplified_url
+    # Note that only now we know what the URL in the database will actually be, since we want to deduplicate in case of "weird" redirects.
     url_object = upsert_url(url_string)
     # === Semantical and interest check:
-    second_level_domain, have_interest = None
+    second_level_domain, have_interest = None, False
     if disaster_reason is None:
-        second_level_domain = get_strict_sld_of_url_or_none(url_string)
+        second_level_domain, have_interest = get_strict_sld_and_interest(url_string)
         if second_level_domain is None:
             disaster_reason = "has no public suffix"
     # === Handle syntactical/semantical failure:
     if disaster_reason is not None:
-        models.DisasterUrl(url_object, disaster_reason).save()
+        models.DisasterUrl(url=url_object, reason=disaster_reason).save()
         return MaybeCrawlableResult(url_object, None)
     # === Handle interest failure:
-    return MaybeCrawlableResult(url_object, None)
+    if not have_interest:
+        return MaybeCrawlableResult(url_object, None)
     # === Handle crawlable URL, the only happy path:
     domain_object, _created = models.Domain.objects.get_or_create(domain_name=second_level_domain)
     crawlable_object, _created = models.CrawlableUrl.objects.get_or_create(url=url_object, domain=domain_object)
