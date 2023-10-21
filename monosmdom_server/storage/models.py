@@ -44,7 +44,7 @@ class Domain(models.Model):
 class Url(models.Model):
     # URLs can be insanely long, but there also seems to be a limit of 255 characters. Use that!
     # We overshoot by a bit, just for extra safety margin in case of UTF-8 counting weirdness.
-    url = models.CharField(max_length=300)
+    url = models.CharField(max_length=300, unique=True)
     # Exactly one of the following must be true for each "Url":
     # - The "Url" has one-or-more "DisasterUrl"s associated with it, and zero "CrawlableUrl"s.
     #   This happens when a URL occurs in the OSM dataset, but "obviously" cannot work.
@@ -66,6 +66,7 @@ class CrawlableUrl(models.Model):
     domain = models.ForeignKey(Domain, on_delete=models.RESTRICT)
 
 
+# TODO: Move to crawler app.
 class CrawlResult(models.Model):
     # Don't point to CrawlableUrl! This allows us to crawl a URL and later decide that it is a disaster URL, without any data loss.
     url = models.ForeignKey(Url, on_delete=models.RESTRICT)
@@ -83,6 +84,7 @@ class CrawlResultSuccess(CrawlResult):
     status_code = models.PositiveSmallIntegerField()
     headers_lz4 = models.BinaryField(max_length=HEADERS_MAX_LZ4_LENGTH, null=True)
     content_lz4 = models.FileField(upload_to=user_directory_path, null=True)
+    # TODO: Also record redirect-chain depth?
     # Don't point to CrawlableUrl! Don't want to intentionally crawl that URL.
     next_url = models.ForeignKey(Url, on_delete=models.SET_NULL, null=True)
 
