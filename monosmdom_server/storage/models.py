@@ -27,6 +27,7 @@ import uuid
 
 
 HEADERS_MAX_LZ4_LENGTH = 4096
+URL_TRUNCATION_LENGTH = 50
 
 
 def user_directory_path(instance, filename):
@@ -39,6 +40,9 @@ class Domain(models.Model):
     # Domain names can be insanely long. OSM Germany contains a working domain name with 76 characters!
     domain_name = models.CharField(max_length=200, db_index=True)
     last_contacted = models.DateTimeField(db_index=True, default=None, null=True)
+
+    def __str__(self):
+        return f"<Domain#{self.id} {self.domain_name}>"
 
 
 class Url(models.Model):
@@ -54,16 +58,32 @@ class Url(models.Model):
     #   This happens when a URL is outdated, or was discovered as part of a redirection chain.
     # Note that this is NOT a case of model inheritance.
 
+    def __str__(self):
+        return f"<Url#{self.id} {self.truncated}>"
+
+    @property
+    def truncated(self):
+        use_url = self.url
+        if len(use_url) > URL_TRUNCATION_LENGTH:
+            use_url = use_url[:URL_TRUNCATION_LENGTH - 1] + "…"
+        return use_url
+
 
 class DisasterUrl(models.Model):
     url = models.ForeignKey(Url, on_delete=models.RESTRICT)
     reason = models.CharField()
+
+    def __str__(self):
+        return f"<DisasterUrl#{self.id} {self.url.truncated}>"
 
 
 class CrawlableUrl(models.Model):
     # Despite the name, a Url may be associated with zero or one CrawlableUrl:
     url = models.OneToOneField(Url, on_delete=models.RESTRICT, primary_key=True)
     domain = models.ForeignKey(Domain, on_delete=models.RESTRICT)
+
+    def __str__(self):
+        return f"<CrawlableUrl#{self.url_id} {self.url.truncated}>"
 
 
 # TODO: Move to crawler app.
@@ -72,6 +92,9 @@ class CrawlResult(models.Model):
     url = models.ForeignKey(Url, on_delete=models.RESTRICT)
     crawl_begin = models.DateTimeField(db_index=True)
     crawl_end = models.DateTimeField(db_index=True)
+
+    def __str__(self):
+        return f"<CrawlResult#{self.id} {self.url.truncated}>"
 
 
 # "Success" simply means that the server responded with *something* that could be interpreted as a valid HTTP response.
@@ -88,11 +111,17 @@ class CrawlResultSuccess(CrawlResult):
     # Don't point to CrawlableUrl! Don't want to intentionally crawl that URL.
     next_url = models.ForeignKey(Url, on_delete=models.SET_NULL, null=True)
 
+    def __str__(self):
+        return f"<CrawlResultSuccess#{self.crawlresult_ptr_id} {self.url.truncated}>"
+
 
 class CrawlResultError(CrawlResult):
     # Note: Inheritance!
     # TODO: Unclear format of the error description, since there are myriad ways to fail.
     description_json = models.TextField()
+
+    def __str__(self):
+        return f"<CrawlResultError#{self.crawlresult_ptr_id} {self.url.truncated}>"
 
 
 class OccurrenceInOsm(models.Model):
@@ -103,3 +132,10 @@ class OccurrenceInOsm(models.Model):
     osm_tag_value = models.CharField(max_length=300)
     # Note that duplicates are meaningful (e.g. "website=https://foo.com;https://foo.com"), although not very informative.
     # These will be completely wiped and re-written on every import anyway.
+
+    def __str__(self):
+        return f"<OccurrenceInOsm#{self.id} {self.osm_item_type}{self.osm_item_id}>"
+
+    class Meta:
+        verbose_name = "occurrence in OSM"
+        verbose_name_plural = "occurrences in OSM"
