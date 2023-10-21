@@ -20,6 +20,7 @@ be used to query for problems and check which actions should be taken, if any.
   ```
   $ apt install python3 postgresql psql
   ```
+  This project requires symbolic links. Everything except Windows supports symbolic links.
 - Get postgres up and running. You might find [these instructions](https://www.postgresql.org/docs/14/client-authentication.html) useful.
   Create a database of some name, for example `monosmdom`.
   You can check your progress with the `psql` tool.
