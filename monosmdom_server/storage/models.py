@@ -1,12 +1,9 @@
 from django.db import models
-import uuid
 
 # Questions that the models shall answer:
 # - Give me a random URL with at least one occurrence whose domain hasn't been contacted for at least 5 minutes and isn't ignored.
-# - Show me the most recent crawling results.
-# - Show me all ignored domains.
+# - Show me all ignored domains. (Not really supported)
 # - For this domain, what are the associated URLs?
-# - What are all crawling results for this specific URL?
 # - What are all occurrences of this specific URL?
 # - Show me all disastrous URLs and their reasons.
 # - Show me the domains with the most URLs.
@@ -14,7 +11,6 @@ import uuid
 # So we need the following concepts:
 # - Domain (deduced from hostname and publicsuffixlist)
 # - URL
-# - CrawlResult
 # - Occurrence
 
 # Stats for better intuition:
@@ -26,14 +22,7 @@ import uuid
 # And that's just for Germany, at the time of writing.
 
 
-HEADERS_MAX_LZ4_LENGTH = 4096
 URL_TRUNCATION_LENGTH = 50
-
-
-def user_directory_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
-    hexstring = uuid.uuid4().hex
-    return f"crawlresults_maybetrunc/{hexstring[:3]}/{hexstring[3:]}.dat.lz4"
 
 
 class Domain(models.Model):
@@ -84,44 +73,6 @@ class CrawlableUrl(models.Model):
 
     def __str__(self):
         return f"<CrawlableUrl#{self.url_id} {self.url.truncated}>"
-
-
-# TODO: Move to crawler app.
-class CrawlResult(models.Model):
-    # Don't point to CrawlableUrl! This allows us to crawl a URL and later decide that it is a disaster URL, without any data loss.
-    url = models.ForeignKey(Url, on_delete=models.RESTRICT)
-    crawl_begin = models.DateTimeField(db_index=True)
-    crawl_end = models.DateTimeField(db_index=True)
-
-    def __str__(self):
-        return f"<CrawlResult#{self.id} {self.url.truncated}>"
-
-
-# "Success" simply means that the server responded with *something* that could be interpreted as a valid HTTP response.
-# So 200 is successful, 301 is successful, 404 is successful, 500 is successful.
-# "Error" means that the server couldn't be reached, or didn't respond with something we could interpret.
-
-
-class CrawlResultSuccess(CrawlResult):
-    # Note: Inheritance!
-    status_code = models.PositiveSmallIntegerField()
-    headers_lz4 = models.BinaryField(max_length=HEADERS_MAX_LZ4_LENGTH, null=True)
-    content_lz4 = models.FileField(upload_to=user_directory_path, null=True)
-    # TODO: Also record redirect-chain depth?
-    # Don't point to CrawlableUrl! Don't want to intentionally crawl that URL.
-    next_url = models.ForeignKey(Url, on_delete=models.SET_NULL, null=True)
-
-    def __str__(self):
-        return f"<CrawlResultSuccess#{self.crawlresult_ptr_id} {self.url.truncated}>"
-
-
-class CrawlResultError(CrawlResult):
-    # Note: Inheritance!
-    # TODO: Unclear format of the error description, since there are myriad ways to fail.
-    description_json = models.TextField()
-
-    def __str__(self):
-        return f"<CrawlResultError#{self.crawlresult_ptr_id} {self.url.truncated}>"
 
 
 class OccurrenceInOsm(models.Model):

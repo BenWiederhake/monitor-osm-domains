@@ -152,7 +152,7 @@ class Migration(migrations.Migration):
                 (
                     "content_lz4",
                     models.FileField(
-                        null=True, upload_to=storage.models.user_directory_path
+                        null=True, upload_to=exit  # storage.models.user_directory_path no longer exists
                     ),
                 ),
                 (
