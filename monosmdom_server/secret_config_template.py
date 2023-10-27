@@ -6,6 +6,9 @@ CSRF_TRUSTED_ORIGINS = ["https://my.domain.example"]
 AT_SUBPATH = "foo/bar"  # No slashes on either side
 STATIC_ROOT = f"/var/html/www.yourdomain.tld/{AT_SUBPATH}/static"  # Yes leading, no trailing slash
 STATIC_URL = f"/{AT_SUBPATH}/static/"  # Yes leading, yes trailing slash
+MEDIA_ROOT = "/home/user/tmp/monosmdom_media/"
+# MEDIA_URL is implicit
+# FIXME: Throttle login requests
 
 SECURE_HSTS_SECONDS = 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
