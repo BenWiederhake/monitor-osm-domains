@@ -140,7 +140,7 @@ def try_crawlable_url(url_string):
             disaster_reason = "has no public suffix"
     # === Handle syntactical/semantical failure:
     if disaster_reason is not None:
-        models.DisasterUrl(url=url_object, reason=disaster_reason).save()
+        models.DisasterUrl.create(url=url_object, reason=disaster_reason)
         return MaybeCrawlableResult(url_object, None)
     # === Handle interest failure:
     if not have_interest:

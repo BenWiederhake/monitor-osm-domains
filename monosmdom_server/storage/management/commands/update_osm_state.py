@@ -74,14 +74,13 @@ def register_occurrence(url_object, occ_dict):
     # occ_dict.orig_url = "http:// bsr.de";
     # occ_dict.t = "n";
     assert set(occ_dict.keys()) == {"id", "k", "orig_url", "t"}, occ_dict
-    occ_obj = models.OccurrenceInOsm(
+    occ_obj = models.OccurrenceInOsm.objects.create(
         url=url_object,
         osm_item_type=occ_dict["t"],
         osm_item_id=occ_dict["id"],
         osm_tag_key=occ_dict["k"],
         osm_tag_value=occ_dict["orig_url"],
     )
-    occ_obj.save()
     # Note that this creates duplicates if the imported data contains e.g. "website=https://foo.com;https://foo.com".
     # This is not very informative, but it seems even more wasteful to keep an index and try to avoid duplicates.
     # These will be completely wiped and re-written on every import anyway.
@@ -100,7 +99,7 @@ def update_osm_state(disasters, simplified_urls):
         assert set(disaster_context.keys()) == {"occs", "reasons"}
         url_object = logic.upsert_url(url_string)
         for disaster_reason in disaster_context["reasons"]:
-            models.DisasterUrl(url=url_object, reason=disaster_reason).save()
+            models.DisasterUrl.objects.create(url=url_object, reason=disaster_reason)
         for occ_dict in disaster_context["occs"]:
             register_occurrence(url_object, occ_dict)
     print(f"    Importing and checking simplified URLs …")
