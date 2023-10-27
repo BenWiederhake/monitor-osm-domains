@@ -26,22 +26,24 @@ import uuid
 # That means I'll have to actively take care of interpreting the crawled
 # webpages and purging them, if I ever want a higher time resolution.
 
-# Small example:
-# - uncompressed: 194 bytes
-# - lz4: 209 bytes
-# - lzma: 232 bytes
-# - bz2: 198 bytes
-# - zlib: 168 bytes (!!!)
-# Medium example:
-# - uncompressed: 386 bytes
-# - lz4: 360 bytes
-# - zlib: 274 bytes
-# Large example:
-# - uncompressed: 619 bytes
-# - lz4: 594 bytes
-# - lzma: 552 bytes
-# - bz2: 545 bytes
-# - zlib: 472 bytes (!!!)
+
+# >>> {k: len(v) for k, v in examples.items()}
+# {'sedopark': 619, 'sedopark_nocookie': 386, 'gunicorn': 523, 'nextcloud': 1412, 'tiny_gunicorn': 258, 'tiny_tl': 194}
+# >>> {k: len(lz4.frame.compress(v)) for k, v in examples.items()}
+# {'sedopark': 598, 'sedopark_nocookie': 364, 'gunicorn': 447, 'nextcloud': 1122, 'tiny_gunicorn': 242, 'tiny_tl': 211}  # Strictly worse than zlib
+# >>> {k: len(bz2.compress(v)) for k, v in examples.items()}
+# {'sedopark': 545, 'sedopark_nocookie': 323, 'gunicorn': 398, 'nextcloud': 983, 'tiny_gunicorn': 227, 'tiny_tl': 203}  # Strictly worse than zlib
+# >>> {k: len(lzma.compress(v)) for k, v in examples.items()}
+# {'sedopark': 552, 'sedopark_nocookie': 348, 'gunicorn': 412, 'nextcloud': 920, 'tiny_gunicorn': 252, 'tiny_tl': 236}  # Strictly worse than zlib
+# >>> {k: len(zstd.compress(v)) for k, v in examples.items()}
+# {'sedopark': 485, 'sedopark_nocookie': 283, 'gunicorn': 350, 'nextcloud': 858, 'tiny_gunicorn': 184, 'tiny_tl': 174}  # Strictly worse than zlib
+# >>> {k: len(gzip.compress(v)) for k, v in examples.items()}
+# {'sedopark': 484, 'sedopark_nocookie': 286, 'gunicorn': 350, 'nextcloud': 841, 'tiny_gunicorn': 195, 'tiny_tl': 180}  # Strictly worse than zlib
+# >>> {k: len(zlib.compress(v)) for k, v in examples.items()}
+# {'sedopark': 472, 'sedopark_nocookie': 274, 'gunicorn': 338, 'nextcloud': 829, 'tiny_gunicorn': 183, 'tiny_tl': 168}  # Strictly worse than brotli
+# >>> {k: len(brotli.compress(v)) for k, v in examples.items()}
+# {'sedopark': 412, 'sedopark_nocookie': 216, 'gunicorn': 274, 'nextcloud': 734, 'tiny_gunicorn': 144, 'tiny_tl': 154}
+# So let's use brotli for this particular usecase.
 
 
 HEADERS_MAX_LENGTH = 1024
@@ -79,11 +81,11 @@ class Result(models.Model):
 class ResultSuccess(models.Model):
     result = models.OneToOneField(Result, on_delete=models.CASCADE, primary_key=True)
     status_code = models.PositiveSmallIntegerField()
-    headers_zlib = models.BinaryField(null=True)
-    headers_orig_size = models.PositiveIntegerField()
+    headers_zlib = models.BinaryField(null=True)  # Uses brotli compression, despite its name
+    headers_orig_size = models.IntegerField()  # The negative value "-x" means "Dunno, gave up after reading x bytes"
     # File is uncompressed, as the filesystem quantizes to the next block size.
     content_file = models.FileField(upload_to=user_directory_path, null=True, db_index=True)
-    content_orig_size = models.PositiveIntegerField()
+    content_orig_size = models.IntegerField()  # The negative value "-x" means "Dunno, gave up after reading x bytes"
     # Note: Redirect-chain depth is implicit.
     # Don't point to CrawlableUrl! We don't necessarily want to automatically crawl that URL in the future.
     # Note: If next_url is non-None but next_request is None, this can have many reasons, including: Invalid URL, ignored domain, redirect limit reached.
