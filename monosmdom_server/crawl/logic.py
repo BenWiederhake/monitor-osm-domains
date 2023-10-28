@@ -2,6 +2,7 @@ from django.db import transaction
 from django.db.models import F
 from django.db.models import Max
 from monosmdom_server import common
+import brotli
 import crawl
 import datetime
 import logging
@@ -91,6 +92,60 @@ def pick_and_bump_random_crawlable_url():
         .order_by(F("last_crawl").asc(nulls_first=True))[0]
     )
     return oldest_crawlable_url
+
+
+def compress_lossy(content_raw, max_length):
+    candidate_bytes = brotli.compress(content_raw)
+    if len(candidate_bytes) <= max_length:
+        # We got lucky!
+        return candidate_bytes
+    # We have to bisect the length.
+    safe_len = 0
+    unsafe_len = len(content_raw)
+    compressed_bytes = b";"  # == brotli.compress(b"")
+    # INVARIANT: safe_len < unsafe_len
+    # INVARIANT: compressed_bytes decompresses to safe_len many bytes
+    # INVARIANT: len(compressed_bytes) <= max_length
+    # INVARIANT: brotli.compress(content_raw[:safe_len]) == compressed_bytes
+    # Each iteration tries to halve 'unsafe_len - safe_len'.
+    while unsafe_len > safe_len + 1:
+        # If unsafe_len - safe_len > 2, then rounding doesn't matter.
+        # If unsafe_len - safe_len < 2, then we wouldn't be here.
+        assert unsafe_len - safe_len >= 2
+        # If unsafe_len - safe_len == 2, then they have the same parity, which means the sum is
+        # even, so integer division is safe (i.e. does actual progress).
+        candidate_len = (safe_len + unsafe_len) // 2
+        candidate_bytes = brotli.compress(content_raw[:candidate_len])
+        if len(candidate_bytes) <= max_length:
+            assert safe_len < candidate_len
+            safe_len = candidate_len
+            compressed_bytes = candidate_bytes
+            # Note that we could stop here, but then we might miss out by nearly factor two.
+        else:
+            # Note that it is technically possible that a longer prefix compresses to a shorter
+            # string. However, that is very rare, and would likely only gain a few bytes.
+            assert unsafe_len > candidate_len
+            unsafe_len = candidate_len
+            # Don't touch compressed_bytes!
+    return compressed_bytes
+
+
+def compress_content_lossy(content_raw, is_truncated, max_length):
+    """
+    Takes content bytes (possibly already truncated) and a 'is_truncated' boolean.
+    Returns a (compressed_bytes, orig_size) tuple.
+    'compressed_bytes' is guaranteed to be at most 'max_length' bytes long, and
+    decompresses to a prefix of the content_raw bytes.
+    'orig_size' is an int that follows the 'crawl.models.ResultSuccess.{headers,content}_orig_size'
+    convention: non-negative when exact, negative when inexact.
+    Note in particular that truncation is only signaled implicitly!
+    """
+    orig_size = len(content_raw)
+    if is_truncated:
+        assert orig_size > 0
+        orig_size = -orig_size
+
+    return (compress_lossy(content_raw, max_length), orig_size)
 
 
 class CrawlProcess:

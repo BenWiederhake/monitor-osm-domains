@@ -83,8 +83,7 @@ class ResultSuccess(models.Model):
     status_code = models.PositiveSmallIntegerField()
     headers_zlib = models.BinaryField(null=True)  # Uses brotli compression, despite its name
     headers_orig_size = models.IntegerField()  # The negative value "-x" means "Dunno, gave up after reading x bytes"
-    # File is uncompressed, as the filesystem quantizes to the next block size.
-    content_file = models.FileField(upload_to=user_directory_path, null=True, db_index=True)
+    content_file = models.FileField(upload_to=user_directory_path, null=True, db_index=True)  # Also brotli compressed
     content_orig_size = models.IntegerField()  # The negative value "-x" means "Dunno, gave up after reading x bytes"
     # Note: Redirect-chain depth is implicit.
     # Don't point to CrawlableUrl! We don't necessarily want to automatically crawl that URL in the future.
