@@ -1,5 +1,7 @@
 from django.db import models
 import storage
+import secrets
+import base64
 import uuid
 
 # Questions that the models shall answer:
@@ -52,13 +54,39 @@ CONTENT_MAX_LENGTH = 4096
 CONTENT_MAX_DETECT_LENGTH = 10 * CONTENT_MAX_LENGTH  # Enable crude analysis of content sizes
 
 
-USER_DIRECTORY_PATH_REGEX = "crawlresults_maybetrunc/[0-9a-f]{3}/[0-9a-f]{32}\.dat"
+USER_DIRECTORY_PATH_REGEX = "res/[2-7A-Z]{2}/[2-7A-Z]{16}\.br"
 
 
-def user_directory_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
-    hexstring = uuid.uuid4().hex
-    return f"crawlresults_maybetrunc/{hexstring[:3]}/{hexstring}.dat"
+def user_directory_path(_instance, _filename):
+    # File will be uploaded to MEDIA_ROOT/<filename_returned_by_this_function>
+    # Note that "filename_returned_by_this_function" will be stored verbatim in the DB, so make an
+    # attempt to keep it reasonably small.
+    # Q: But won't the sheer size of the *INLINE* header data negate all that?
+    # A: Kinda, but this way they can be purge separately. Dunno.
+    # Beyond 10 GiB this would become unwieldy. With a block size of 4K this means we have at most
+    # 2_621_440 files. This means we should have more than 42.6 bits of entropy. That's much less
+    # than a UUID (124-126 bits of entropy)!
+    # Choose a two-level structure: We have a top-level dir with d sub-dirs, and those contain the
+    # files. If we distribute the files uniformly randomly, they will most likely not be perfectly
+    # evenly distributed, see the balls-into-bins problem:
+    #   https://en.wikipedia.org/wiki/Balls_into_bins_problem#Random_allocation
+    # Adapting the Wikipedia equation, we have to expect that the largest sub-dir ends up with:
+    #   whpmax = n / d + sqrt(n * ln(d) / d)
+    # number of files. For some reasonable values of d:
+    #   d = 256 --> whpmax = 10479 (bad!)
+    #   d = 1024 --> whpmax = 2694
+    #   d = 4096 --> whpmax = 713
+    # Both d=1024 and d=4096 are perfectly fine. I did all these calculations because I expected
+    # the whpmax to be *much* worse. Oh well, "again what learned".
+    # How should the entropy be encoded?
+    # - base64: Relies on "A" and "a" being different files. This may be fine, but let's avoid it.
+    # - base32: 16 chars hold 10 bytes (80 bits) of entropy. d=1024.
+    # - hex (base16): 16 chars hold 8 bytes (64 bits) of entropy. d=4096.
+    # Choose base32 since n is likely to be much smaller, and I want to avoid having to deal with
+    # 4096 folders.
+    basename = base64.b32encode(secrets.token_bytes(10)).decode()
+    assert len(basename) == 16
+    return f"res/{basename[:2]}/{basename}.br"
 
 
 class Result(models.Model):

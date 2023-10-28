@@ -1,3 +1,4 @@
+from collections import Counter
 from crawl import logic, models
 from django.conf import settings
 from django.test import TestCase, TransactionTestCase
@@ -311,3 +312,22 @@ class LossyCompressionTests(TestCase):
         self.assertCompressesAtLeast(body, 1024, 2357, 2367)
         # Again, pretty much the middle:
         self.assertCompressesAtLeast(body, 1024, 2364, 2364)
+
+
+class UploadRegexAndFunctionAgree(TestCase):
+    def test_simple(self):
+        # Since this will randomly fail if it ever fails, it has to be called repeatedly.
+        # Let's say it fails with probability p.
+        # If p is less than 1e-3, the additional work done by failed crawl attempts is non-catastrophic.
+        # If p is 1e-3 or larger, then the probability to be detected in 10_000 trials is 99.995%:
+        #    (1 - 1/1000) ** 1000 = 1/e, "approximately" (accurate up to <1ULP)
+        #    1 - (1 - 1/1000) ** 10000 = 1 - (1/e)**10 = 0.9999546…
+        lengths = Counter()
+        for i in range(10_000):
+            # Doing this in subtests allows us to gauge how bad the situation is, should this ever fail:
+            path = models.user_directory_path(None, None)
+            lengths[len(path)] += 1
+            with self.subTest(i=i, path=path):
+                self.assertRegex(path, models.USER_DIRECTORY_PATH_REGEX)
+        # Check that all paths have identical length:
+        self.assertEqual(len(lengths), 1, lengths)
