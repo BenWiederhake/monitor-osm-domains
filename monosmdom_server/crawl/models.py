@@ -109,7 +109,7 @@ class Result(models.Model):
 class ResultSuccess(models.Model):
     result = models.OneToOneField(Result, on_delete=models.CASCADE, primary_key=True)
     status_code = models.PositiveSmallIntegerField()
-    headers_zlib = models.BinaryField(null=True)  # Uses brotli compression, despite its name
+    headers = models.BinaryField(null=True)  # brotli compressed
     headers_orig_size = models.IntegerField()  # The negative value "-x" means "Dunno, gave up after reading x bytes"
     content_file = models.FileField(upload_to=user_directory_path, null=True, db_index=True)  # Also brotli compressed
     content_orig_size = models.IntegerField()  # The negative value "-x" means "Dunno, gave up after reading x bytes"
