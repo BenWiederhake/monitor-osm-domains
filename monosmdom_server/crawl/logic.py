@@ -1,3 +1,4 @@
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import F
 from django.db.models import Max
@@ -5,6 +6,7 @@ from monosmdom_server import common
 import brotli
 import crawl
 import datetime
+import json
 import logging
 import storage
 
@@ -152,38 +154,60 @@ class CrawlProcess:
     def __init__(self, crawlable_url):
         self.crawlable_url = crawlable_url
         self.has_submitted = False
-        self.result_success = None
+        self.result = None
+
+    def __enter__(self):
+        assert self.result is None
         # We want to make absolutely certain that the connection intent is registered, for possible
         # recovery or crash investigation. To do that, we need to be the outermost atomic:
         with transaction.atomic(durable=True):
-            self.result = models.Result.objects.create(url=crawlable_url.url, crawl_begin=common.now_tzaware())
-
-    def __enter__(self):
+            self.result = crawl.models.Result.objects.create(url=self.crawlable_url.url, crawl_begin=common.now_tzaware())
+        # Now that it has been created, proceed with the network part of crawling.
         return self
 
     def submit(self, status_code, headers_raw, headers_truncated, content_raw, content_truncated, next_url):
+        assert self.result is not None
         assert not self.has_submitted
-        self.has_submitted = True
-        raise NotImplementedError()
-        headers_zlib = None
+        headers, headers_orig_size = compress_content_lossy(headers_raw, headers_truncated, crawl.models.HEADERS_MAX_LENGTH)
+        content, content_orig_size = compress_content_lossy(content_raw, content_truncated, crawl.models.CONTENT_MAX_LENGTH)
+        content_file = ContentFile(content, name="<ignored>")
+        # "atomic" is just (premature?) optimization, combining the two writes into one:
         with transaction.atomic():
-            self.result_success = models.ResultSuccess.objects.create(
+            result_success = crawl.models.ResultSuccess.objects.create(
                 result=self.result,
                 status_code=status_code,
+                headers=headers,
+                headers_orig_size=headers_orig_size,
+                content_file=content_file,
+                content_orig_size=content_orig_size,
+                next_url=next_url,
+                # no "next_request" yet
             )
             self.result.crawl_end = common.now_tzaware()
             self.result.save()
-    # status_code = models.PositiveSmallIntegerField()
-    # headers_zlib = models.BinaryField(null=True)
-    # headers_orig_size = models.PositiveIntegerField()
-    # # File is uncompressed, as the filesystem quantizes to the next block size.
-    # content_file = models.FileField(upload_to=user_directory_path, null=True, db_index=True)
-    # content_orig_size = models.PositiveIntegerField()
-    # # Note: Redirect-chain depth is implicit.
-    # # Don't point to CrawlableUrl! We don't necessarily want to automatically crawl that URL in the future.
-    # # Note: If next_url is non-None but next_request is None, this can have many reasons, including: Invalid URL, ignored domain, redirect limit reached.
-    # next_url = models.ForeignKey(storage.models.Url, on_delete=models.SET_NULL, null=True)
-    # next_request = models.ForeignKey(Result, on_delete=models.SET_NULL, null=True, related_name="redir_set")
+        # Only now switch off exception-logging:
+        self.has_submitted = True
+        # Return the ResultSuccess row, the caller might want to set next_request:
+        return result_success
 
     def __exit__(self, type, value, traceback):
-        raise NotImplementedError()
+        assert self.result is not None
+        if self.has_submitted:
+            return
+        self.has_submitted = True  # Are there any edge cases where this is read again?
+        description = dict(
+            type=repr(type),
+            value=repr(value),
+            # class "traceback" is weird, and not easily serializable. Skip it entirely.
+        )
+        # If we're not the outermost atomic, then this insertion would be rolled back instantly.
+        # We try to avoid that by using durable=True.
+        with transaction.atomic(durable=True):
+            crawl.models.ResultError.objects.create(
+                result=self.result,
+                description_json=json.dumps(description),
+            )
+            self.result.crawl_end = common.now_tzaware()
+            self.result.save()
+        # Indicate that we did NOT gracefully recover. This will hopefully stop the crawler.
+        return None

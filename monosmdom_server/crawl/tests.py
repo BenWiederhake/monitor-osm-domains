@@ -331,3 +331,82 @@ class UploadRegexAndFunctionAgree(TestCase):
                 self.assertRegex(path, models.USER_DIRECTORY_PATH_REGEX)
         # Check that all paths have identical length:
         self.assertEqual(len(lengths), 1, lengths)
+
+
+class CrawlProcessTests(TransactionTestCase):
+    def test_golden(self):
+        some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
+        some_url = storage.models.Url.objects.create(url="https://foo.com/")
+        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        grabbed_result = None
+        crawl_content = b"Welcome to my wonderful website!"
+        with logic.CrawlProcess(some_crurl) as process:
+            grabbed_result = process.result
+            self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+            self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
+            self.assertQuerySetEqual(models.ResultError.objects.all(), [])
+            self.assertIsNone(grabbed_result.crawl_end)
+            # This creates a real file in the real MEDIA_ROOT :(
+            result_success = process.submit(234, b"vary: None", False, crawl_content, False, None)
+            self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+            self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [result_success])
+            self.assertQuerySetEqual(models.ResultError.objects.all(), [])
+            self.assertIsNotNone(grabbed_result.crawl_end)
+        self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+        self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [result_success])
+        self.assertQuerySetEqual(models.ResultError.objects.all(), [])
+        self.assertIsNotNone(grabbed_result.crawl_end)
+        result_success_from_db = models.ResultSuccess.objects.all().get()
+        crawl_content_compressed = result_success_from_db.content_file.read()
+        self.assertEqual(brotli.decompress(crawl_content_compressed), crawl_content)
+        self.assertLess(len(crawl_content_compressed), len(crawl_content))
+        # Try to clean up the file from MEDIA_ROOT:
+        result_success_from_db.content_file.delete(save=False)
+        # Note that this leaves empty dirs behind. Sigh.
+
+    def test_missing(self):
+        some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
+        some_url = storage.models.Url.objects.create(url="https://foo.com/")
+        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        grabbed_result = None
+        crawl_content = b"Welcome to my wonderful website!"
+        with logic.CrawlProcess(some_crurl) as process:
+            grabbed_result = process.result
+            self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+            self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
+            self.assertQuerySetEqual(models.ResultError.objects.all(), [])
+            self.assertIsNone(grabbed_result.crawl_end)
+            # And then … we just "forget" to call submit! D:
+        self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+        self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
+        self.assertEqual(len(models.ResultError.objects.all()), 1)
+        self.assertIsNotNone(grabbed_result.crawl_end)
+        result_error_from_db = models.ResultError.objects.all().get()
+        self.assertRegex(result_error_from_db.description_json, '"None"')
+
+    def test_exception(self):
+        some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
+        some_url = storage.models.Url.objects.create(url="https://foo.com/")
+        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        grabbed_result = None
+        crawl_content = b"Welcome to my wonderful website!"
+        got_rethrown = False
+        try:
+            with logic.CrawlProcess(some_crurl) as process:
+                grabbed_result = process.result
+                self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+                self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
+                self.assertQuerySetEqual(models.ResultError.objects.all(), [])
+                self.assertIsNone(grabbed_result.crawl_end)
+                # Oh noes, an exception! D:
+                raise ValueError("Let's pretend something went wrong")
+        except ValueError as e:
+            assert e.args == ("Let's pretend something went wrong",)
+            got_rethrown = True
+        self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+        self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
+        self.assertTrue(got_rethrown)
+        self.assertEqual(len(models.ResultError.objects.all()), 1)
+        self.assertIsNotNone(grabbed_result.crawl_end)
+        result_error_from_db = models.ResultError.objects.all().get()
+        self.assertRegex(result_error_from_db.description_json, r'ValueError\(\\"Let\'s pretend something went wrong\\"\)')
