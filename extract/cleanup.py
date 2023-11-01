@@ -198,6 +198,11 @@ def simplified_url_or_disaster_reason(parse_url):
         print(f"    Before: >>{parse_url}<<")
         print(f"    After : >>{unsplit_url}<<")
     # Keep query without any checks, and reset fragment.
+    if parts.path == "":
+        # This simplifies/unifies "https://example.com" to "https://example.com/"
+        path = "/"
+    else:
+        path = parts.path
     simplified_url = urllib.parse.urlunsplit((parts.scheme, hostname, parts.path, parts.query, ""))
     return simplified_url, None
 
