@@ -35,3 +35,11 @@ DATABASE_POSTGRES = {
 }
 # Use this to easily switch back to SQLITE in case of some problems:
 DATABASE = DATABASE_POSTGRES
+
+# I suggest a weekly cronjob as described here: https://github.com/BenWiederhake/intermediate-ca-bundle#intermediate-ca-bundle
+# Basically:
+# $ curl --proto '=https' --tlsv1.2 -sSf -O 'https://raw.githubusercontent.com/BenWiederhake/intermediate-ca-bundle/blob/intermediate_certs.pem'
+# $ cat /etc/ssl/certs/ca-certificates.crt intermediate_certs.pem > combined.pem
+CAINFO_ROOT_AND_INTERMEDIATE = "/path/to/combined.pem"
+# If your crawler runs amuck, you need to be reachable in some form. Please check regularly whether you can receive e-mail at this address!
+CRAWLER_USERAGENT_EMAIL = ""firstname.lastname@gmail.com"

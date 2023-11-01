@@ -49,9 +49,7 @@ import uuid
 
 
 HEADERS_MAX_LENGTH = 1024
-HEADERS_MAX_DETECT_LENGTH = 100 * HEADERS_MAX_LENGTH  # Give up trying to read gigantic headers
 CONTENT_MAX_LENGTH = 4096
-CONTENT_MAX_DETECT_LENGTH = 10 * CONTENT_MAX_LENGTH  # Enable crude analysis of content sizes
 
 
 USER_DIRECTORY_PATH_REGEX = "res/[2-7A-Z]{2}/[2-7A-Z]{16}\.br"

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import F
@@ -8,10 +9,21 @@ import crawl
 import datetime
 import json
 import logging
+import pycurl
 import storage
 
 
 CRAWL_DOMAIN_DELAY_DAYS = 60
+
+# Options that are basically passed to curl.
+# Expect compression to be factor 10 at best, and abort connection after factor 100.
+MAX_HEADER = crawl.models.HEADERS_MAX_LENGTH * 10
+MAX_HEADER_STOP_COUNT = crawl.models.HEADERS_MAX_LENGTH * 100
+MAX_BODY = crawl.models.CONTENT_MAX_LENGTH * 10
+MAX_BODY_STOP_COUNT = crawl.models.CONTENT_MAX_LENGTH * 100
+# bytes per second; only a guideline, not a limit:
+MAX_RECV_SPEED_BPS = 1_048_576
+MAX_CONN_TIMEOUT_MS = 10_000
 
 logger = logging.getLogger(__name__)
 
@@ -211,3 +223,148 @@ class CrawlProcess:
             self.result.save()
         # Indicate that we did NOT gracefully recover. This will hopefully stop the crawler.
         return None
+
+
+class LeakyBuf:
+    """
+    Users are only meant to read the slots ba, size, and truncated.
+    """
+
+    def __init__(self, max_save, stop_count):
+        self.ba = bytearray()
+        self.size = 0
+        self.truncated = False
+        self._max_save = max_save
+        self._stop_count = stop_count
+        self._exc = None
+
+    def recv_callback(self, recv_buf):
+        try:
+            self.size += len(recv_buf)
+            if len(self.ba) < self._max_save:
+                # Note that this might overshoot, but don't truncate yet:
+                self.ba.extend(recv_buf)
+            if self.size > self._stop_count:
+                # Abort even trying to count the number of bytes in the response.
+                # We might be under some kind of attack.
+                self.truncated = True
+                return -1
+            # Returning None implies that all bytes were digested
+        except BaseException as e:
+            # Must not raise an exception into the C stack. Save it for re-raising:
+            self._exc = e
+            return -1
+
+
+class LockedCurlResult:
+    def __init__(self):
+        self.header = LeakyBuf(MAX_HEADER, MAX_HEADER_STOP_COUNT)
+        self.body = LeakyBuf(MAX_BODY, MAX_BODY_STOP_COUNT)
+        self.status_code = 0
+        self.location = None
+
+
+class LockedCurl:
+    def __init__(self, *, verbose=False):
+        self.c = pycurl.Curl()
+        if verbose:
+            self.c.setopt(pycurl.VERBOSE, True)
+            print(f"Curl config:")
+            print(f"  {MAX_HEADER=}")
+            print(f"  {MAX_HEADER_STOP_COUNT=}")
+            print(f"  {MAX_BODY=}")
+            print(f"  {MAX_BODY_STOP_COUNT=}")
+            print(f"  {settings.CAINFO_ROOT_AND_INTERMEDIATE=}")
+            print(f"  {settings.CRAWLER_USERAGENT_EMAIL=}")
+        # Note that this is only about local caching of settings, especially of the heavy CA bundle.
+        self.c.setopt(pycurl.CAINFO, settings.CAINFO_ROOT_AND_INTERMEDIATE)
+        # Also disable the system store, fail-fast, to detect config problems quicker:
+        self.c.setopt(pycurl.CAPATH, None)
+        # Connections cannot usually be shared or reused, since we actively *avoid* contacting the
+        # same host twice. However, if we follow a redirect, then re-using the same curl object can
+        # reuse a TLS session or even the entire connection, hence:
+        # Do not use CURLOPT_FORBID_REUSE: Sometimes we get redirects.
+        # Do not turn off HTTP Keep-Alive: Sometimes we get redirects.
+        # Do not use CURLOPT_HEADER! (mixes header and body, hard to parse)
+        # Do not use CURLOPT_MAXFILESIZE(_LARGE)! (not honored in some circumstances)
+        # Do not use CURLOPT_RESOLVER_START_FUNCTION: called at the wrong time, CURLOPT_RESOLVER
+        # only does a static pre-cache.
+        # At the time of writing, the term "SuperTallSoupFleece" has zero hits on Google. So if
+        # you're here because you saw SuperTallSoupFleece in your webserver log, maybe it was this
+        # program – maybe I was even the person running it! Write me an e-mail and say hi :D
+        self.c.setopt(
+            pycurl.USERAGENT,
+            f"monosmdom-crawler/0.0.1 (contact: {settings.CRAWLER_USERAGENT_EMAIL}) (codename: SuperTallSoupFleece)",
+        )
+        self.c.setopt(pycurl.MAX_RECV_SPEED_LARGE, MAX_RECV_SPEED_BPS)
+        # Enable all built-ins (which also enables auto-decompression)
+        self.c.setopt(pycurl.ACCEPT_ENCODING, "")
+        self.c.setopt(pycurl.PROTOCOLS, pycurl.PROTO_HTTP | pycurl.PROTO_HTTPS)
+        self.c.setopt(pycurl.TIMEOUT_MS, MAX_CONN_TIMEOUT_MS)
+        # TODO: intercept "local" IPs with https://curl.se/libcurl/c/CURLOPT_SOCKOPTFUNCTION.html
+        # This will not actually prevent the socket from being connected, but it will abort the
+        # connection before any bytes are sent. This prevents any possible damage (which shouldn't
+        # be too much anyway, since an attacker could only trigger an arbitrary GET request without
+        # controlling cookies or auth info).
+        # TODO: Look into CURLOPT_LOW_SPEED_TIME and CURLOPT_LOW_SPEED_LIMIT: How well can I use them?
+
+    def __del__(self):
+        self.c.close()
+
+    def crawl_response_or_errdict(self, url):
+        """
+        Returns a (result, errdict) tuple, exactly one of these is None.
+        `url` is a URL string.
+        `referer` is either None, or a string with a referer. Example:
+            "https://www.openstreetmap.org/node/221301860#key=website"
+        `result` is either None or an instance of LockedCurlResult, which indicates that HTTP
+            request and response were successfully exchanged. Perhaps a HTTP 500 response, perhaps
+            the body or even the header was truncated, but successful nonetheless. If the header
+            was truncated, then no body was saved at all.
+        `errdict` is either None or a dict, which indicates that a fatal error was encountered, like
+            domain name resolution failure or a timeout. The dict has exactly the following keys:
+            - "errcode": The value is an int, specifically a pycurl.E_* error code.
+            - "errstr": The value is a str, specifically the corresponding error string to the error
+                code. This *might* contain slightly more information, but usually not much.
+            - "response_code": The value is an int. It is either 0, or if it could be determined,
+                the HTTP status code.
+            - "header_size_recv": The value is an int, the number of bytes read before the fatal error.
+            - "body_size_recv": The value is an int, the number of bytes read before the fatal error.
+        """
+        result = LockedCurlResult()
+        self.c.setopt(pycurl.HEADERFUNCTION, result.header.recv_callback)
+        self.c.setopt(pycurl.WRITEFUNCTION, result.body.recv_callback)
+        self.c.setopt(pycurl.URL, url)
+        # Can't use referers, since unsetopt(pycurl.REFERER) refuses to work :(
+        try:
+            # Note: perform() calls into the C stack, which calls into the python stack in
+            # SingleBuf.recv_callback. Python exceptions during recv_callback are instead saved in
+            # SingleBuf.exc, and are then re-raised during E_WRITE_ERROR handling below.
+            self.c.perform()
+        except pycurl.error as e:
+            code = e.args[0]
+            errstr = e.args[1]
+            assert len(e.args) == 2, e.args
+            if code == pycurl.E_WRITE_ERROR:
+                # We aborted receiving data in the body, but everything before then was successful.
+                # We can safely ignore the error – unless it is due to a python exception.
+                # This should be handled outside this "except" block to simplify backtraces.
+                pass
+            else:
+                errdict = dict(
+                    errcode=code,
+                    errstr=errstr,
+                    # curl internally overwrites the response code with 0 before doing anything in
+                    # perform(), so this is never outdated:
+                    response_code=c.getinfo(pycurl.RESPONSE_CODE),
+                    header_size_recv=result.header.size,
+                    body_size_recv=result.body.size,
+                )
+                return None, errdict
+        if result.header._exc is not None:
+            raise result.header._exc
+        if result.body._exc is not None:
+            raise result.body._exc
+        result.status_code = self.c.getinfo(pycurl.RESPONSE_CODE)
+        result.location = self.c.getinfo(pycurl.REDIRECT_URL)
+        return result, None
