@@ -88,10 +88,64 @@ def upsert_url(raw_url):
     return url
 
 
+class LeafModelBulkCache:
+    def __init__(self):
+        self.objs_disasterurl = []
+        self.objs_crawlableurl = []
+        self.objs_occurrenceinosm = []
+        self.valid = True
+
+    def flush(self):
+        models.DisasterUrl.objects.bulk_create(self.objs_disasterurl)
+        self.objs_disasterurl = []
+        models.CrawlableUrl.objects.bulk_create(self.objs_crawlableurl)
+        self.objs_crawlableurl = []
+        models.OccurrenceInOsm.objects.bulk_create(self.objs_occurrenceinosm)
+        self.objs_occurrenceinosm = []
+        self.valid = False
+
+    def insert_count(self):
+        assert self.valid
+        return len(self.objs_disasterurl) + len(self.objs_crawlableurl) + len(self.objs_occurrenceinosm)
+
+    # @classmethod
+    # FIXME: Somehow, "@classmethod" breaks "**kwargs". Why?!
+    def create_durl(cache, **kwargs):
+        durl = models.DisasterUrl(**kwargs)
+        if cache is None:
+            durl.save()
+        else:
+            assert cache.valid
+            cache.objs_disasterurl.append(durl)
+
+    # @classmethod
+    # FIXME: Somehow, "@classmethod" breaks "**kwargs". Why?!
+    def upsert_crurl_via(cache, **kwargs):
+        if cache is None:
+            crurl, _created = models.CrawlableUrl.objects.get_or_create(**kwargs)
+            return crurl
+        else:
+            # Note: If we use a cache, then we can assume this is a bulk import that already has
+            # been deduplicated.
+            assert cache.valid
+            crurl = models.CrawlableUrl(**kwargs)
+            cache.objs_crawlableurl.append(crurl)
+            # We shouldn't return crurl because it does not have an ID yet, and never will have.
+            # We shouldn't return None, because that might be misconstrued as the indication for
+            # disaster. Instead, return a poison value, since in the casae of bulk inserting, the
+            # CrawlableUrl should not be used anyway.
+            return models.CrawlableUrl.DoesNotExist()
+
+    def cache_occ(self, **kwargs):
+        assert self.valid
+        occ = models.OccurrenceInOsm(**kwargs)
+        self.objs_occurrenceinosm.append(occ)
+
+
 MaybeCrawlableResult = collections.namedtuple("MaybeCrawlableResult", ["url_obj", "crawlable_url_obj_or_none"])
 
 
-def try_crawlable_url(url_string, create_disaster):
+def try_crawlable_url(url_string, create_disaster, *, cache=None):
     """
     Given a dirty URL string, this function runs a few sanity checks:
     - Syntactical checks test for illegal schemes, ports, auth info, etc. (see ../../extract/cleanup.py).
@@ -127,6 +181,8 @@ def try_crawlable_url(url_string, create_disaster):
     # === Syntactical check:
     simplified_url, disaster_reason = extract_cleanup.simplified_url_or_disaster_reason(url_string)
     assert (simplified_url is None) != (disaster_reason is None)
+    if cache is not None:
+        assert simplified_url == url_string, (simplified_url, url_string)
     if simplified_url is not None:
         url_string = simplified_url
     # Note that only now we know what the URL in the database will actually be, since we want to deduplicate in case of "weird" redirects.
@@ -139,12 +195,12 @@ def try_crawlable_url(url_string, create_disaster):
             disaster_reason = "has no public suffix"
     # === Handle syntactical/semantical failure:
     if disaster_reason is not None:
-        models.DisasterUrl.objects.create(url=url_object, reason=disaster_reason)
+        LeafModelBulkCache.create_durl(cache, url=url_object, reason=disaster_reason)
         return MaybeCrawlableResult(url_object, None)
     # === Handle interest failure:
     if not have_interest:
         return MaybeCrawlableResult(url_object, None)
     # === Handle crawlable URL, the only happy path:
     domain_object, _created = models.Domain.objects.get_or_create(domain_name=second_level_domain)
-    crawlable_object, _created = models.CrawlableUrl.objects.get_or_create(url=url_object, domain=domain_object)
+    crawlable_object = LeafModelBulkCache.upsert_crurl_via(cache, url=url_object, domain=domain_object)
     return MaybeCrawlableResult(url_object, crawlable_object)
