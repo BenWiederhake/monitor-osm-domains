@@ -347,7 +347,7 @@ class CrawlProcessTests(TransactionTestCase):
             self.assertQuerySetEqual(models.ResultError.objects.all(), [])
             self.assertIsNone(grabbed_result.crawl_end)
             # This creates a real file in the real MEDIA_ROOT :(
-            result_success = process.submit(234, b"vary: None", False, crawl_content, False, None)
+            result_success = process.submit_success(234, b"vary: None", False, crawl_content, False, None)
             self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
             self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [result_success])
             self.assertQuerySetEqual(models.ResultError.objects.all(), [])
@@ -363,6 +363,38 @@ class CrawlProcessTests(TransactionTestCase):
         # Try to clean up the file from MEDIA_ROOT:
         result_success_from_db.content_file.delete(save=False)
         # Note that this leaves empty dirs behind. Sigh.
+
+    def test_curl_error(self):
+        some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
+        some_url = storage.models.Url.objects.create(url="https://foo.com/")
+        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        grabbed_result = None
+        crawl_content = b"Welcome to my wonderful website!"
+        with logic.CrawlProcess(some_crurl) as process:
+            grabbed_result = process.result
+            self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+            self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
+            self.assertQuerySetEqual(models.ResultError.objects.all(), [])
+            self.assertIsNone(grabbed_result.crawl_end)
+            process.submit_error(dict(
+                errcode=1234,
+                errstr="could not avoid connecting to the wrong non-domain",
+                response_code=567,
+                header_size_recv=0,
+                body_size_recv=1,
+            ))
+            self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+            self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
+            self.assertEqual(models.ResultError.objects.count(), 1)
+            self.assertIsNotNone(grabbed_result.crawl_end)
+        self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
+        self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
+        self.assertEqual(models.ResultError.objects.count(), 1)
+        self.assertIsNotNone(grabbed_result.crawl_end)
+        result_error_from_db = models.ResultError.objects.all().get()
+        self.assertRegex(result_error_from_db.description_json, '"could not avoid connecting to the wrong non-domain"')
+        self.assertRegex(result_error_from_db.description_json, '"curl_error"')
+        self.assertFalse(result_error_from_db.is_internal_error)
 
     def test_missing(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
@@ -383,6 +415,8 @@ class CrawlProcessTests(TransactionTestCase):
         self.assertIsNotNone(grabbed_result.crawl_end)
         result_error_from_db = models.ResultError.objects.all().get()
         self.assertRegex(result_error_from_db.description_json, '"None"')
+        self.assertRegex(result_error_from_db.description_json, '"exception_or_missing_submit"')
+        self.assertTrue(result_error_from_db.is_internal_error)
 
     def test_exception(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
@@ -410,3 +444,5 @@ class CrawlProcessTests(TransactionTestCase):
         self.assertIsNotNone(grabbed_result.crawl_end)
         result_error_from_db = models.ResultError.objects.all().get()
         self.assertRegex(result_error_from_db.description_json, r'ValueError\(\\"Let\'s pretend something went wrong\\"\)')
+        self.assertRegex(result_error_from_db.description_json, '"exception_or_missing_submit"')
+        self.assertTrue(result_error_from_db.is_internal_error)

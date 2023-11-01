@@ -124,7 +124,14 @@ class ResultSuccess(models.Model):
 
 class ResultError(models.Model):
     result = models.OneToOneField(Result, on_delete=models.CASCADE, primary_key=True)
-    # TODO: Unclear format of the error description, since there are myriad ways to fail.
+    # is_internal_error == True implies that description_json is a dict with keys:
+    #  - "type": value is always "exception_or_missing_submit"
+    #  - "exc_type": value is the result of repr(type)
+    #  - "value": value is probably the result of repr(value), but that's subject to change
+    # is_internal_error == False implies that description_json is a dict with keys:
+    #  - "type": value is always "curl_errdict"
+    #  - for other keys, see LockedCurl.crawl_response_or_errdict()
+    is_internal_error = models.BooleanField()
     description_json = models.TextField()
 
     def __str__(self):

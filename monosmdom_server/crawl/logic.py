@@ -170,6 +170,7 @@ class CrawlProcess:
 
     def __enter__(self):
         assert self.result is None
+        assert not self.has_submitted
         # We want to make absolutely certain that the connection intent is registered, for possible
         # recovery or crash investigation. To do that, we need to be the outermost atomic:
         with transaction.atomic(durable=True):
@@ -177,7 +178,7 @@ class CrawlProcess:
         # Now that it has been created, proceed with the network part of crawling.
         return self
 
-    def submit(self, status_code, headers_raw, headers_truncated, content_raw, content_truncated, next_url):
+    def submit_success(self, status_code, headers_raw, headers_truncated, content_raw, content_truncated, next_url):
         assert self.result is not None
         assert not self.has_submitted
         headers, headers_orig_size = compress_content_lossy(headers_raw, headers_truncated, crawl.models.HEADERS_MAX_LENGTH)
@@ -202,13 +203,30 @@ class CrawlProcess:
         # Return the ResultSuccess row, the caller might want to set next_request:
         return result_success
 
+    def submit_error(self, curl_errdict):
+        assert self.result is not None
+        assert not self.has_submitted
+        curl_errdict["type"] = "curl_error"
+        # "atomic" is just (premature?) optimization, combining the two writes into one:
+        with transaction.atomic(durable=True):
+            crawl.models.ResultError.objects.create(
+                result=self.result,
+                is_internal_error=False,
+                description_json=json.dumps(curl_errdict),
+            )
+            self.result.crawl_end = common.now_tzaware()
+            self.result.save()
+        # Only now switch off exception-logging:
+        self.has_submitted = True
+
     def __exit__(self, type, value, traceback):
         assert self.result is not None
         if self.has_submitted:
             return
         self.has_submitted = True  # Are there any edge cases where this is read again?
         description = dict(
-            type=repr(type),
+            type="exception_or_missing_submit",
+            exc_type=repr(type),
             value=repr(value),
             # class "traceback" is weird, and not easily serializable. Skip it entirely.
         )
@@ -217,6 +235,7 @@ class CrawlProcess:
         with transaction.atomic(durable=True):
             crawl.models.ResultError.objects.create(
                 result=self.result,
+                is_internal_error=True,
                 description_json=json.dumps(description),
             )
             self.result.crawl_end = common.now_tzaware()
