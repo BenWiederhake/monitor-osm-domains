@@ -27,7 +27,7 @@ URL_TRUNCATION_LENGTH = 50
 
 class Domain(models.Model):
     # Domain names can be insanely long. OSM Germany contains a working domain name with 76 characters!
-    domain_name = models.CharField(max_length=200, db_index=True)
+    domain_name = models.CharField(max_length=200, unique=True, db_index=True)
     last_contacted = models.DateTimeField(db_index=True, default=None, null=True)
 
     def __str__(self):
