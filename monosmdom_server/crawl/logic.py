@@ -56,6 +56,17 @@ def bump_locked_domain_or_none(domain):
     return domain
 
 
+def pick_random_crawlable_url_from_bumped_domain(bumped_domain):
+    # For each CrawlableUrl in the bumped_domain, determine when it was crawled most recently.
+    # Then, choose the CrawlableUrl whose most recent crawl is the longest ago, or never happened.
+    # Don't be fooled by the seeming simplicity of the query: It contains two joins and a sort!
+    return (
+        storage.models.CrawlableUrl.objects.filter(domain=bumped_domain)
+        .annotate(last_crawl=Max("url__result__crawl_begin"))
+        .order_by(F("last_crawl").asc(nulls_first=True))[0]
+    )
+
+
 def pick_and_bump_random_crawlable_url():
     # This is called only from the crawler.
     # We want to make sure that no two crawler processes ever poll the same domain at the same time.
@@ -97,18 +108,13 @@ def pick_and_bump_random_crawlable_url():
         logger.warning(f"    {common.now_tzaware()=}")
         return None
     # Now that we no longer hold the lock, we can run a more elaborate query:
-    # For each CrawlableUrl in the chosen_domain, determine when it was crawled most recently.
-    # Then, choose the CrawlableUrl whose most recent crawl is the longest ago, or never happened.
-    # Don't be fooled by the seeming simplicity of the query: It contains two joins and a sort!
-    oldest_crawlable_url = (
-        storage.models.CrawlableUrl.objects.filter(domain=oldest_domain)
-        .annotate(last_crawl=Max("url__result__crawl_begin"))
-        .order_by(F("last_crawl").asc(nulls_first=True))[0]
-    )
-    return oldest_crawlable_url
+    return pick_random_crawlable_url_from_bumped_domain(chosen_domain)
 
 
 def compress_lossy(content_raw, max_length):
+    if isinstance(content_raw, bytearray):
+        # pybrotli can't handle bytearray :-(
+        content_raw = bytes(content_raw)
     candidate_bytes = brotli.compress(content_raw)
     if len(candidate_bytes) <= max_length:
         # We got lucky!
@@ -144,7 +150,7 @@ def compress_lossy(content_raw, max_length):
     return compressed_bytes
 
 
-def compress_content_lossy(content_raw, is_truncated, max_length):
+def compress_content_lossy(content_raw, given_size, is_truncated, max_length):
     """
     Takes content bytes (possibly already truncated) and a 'is_truncated' boolean.
     Returns a (compressed_bytes, orig_size) tuple.
@@ -154,11 +160,11 @@ def compress_content_lossy(content_raw, is_truncated, max_length):
     convention: non-negative when exact, negative when inexact.
     Note in particular that truncation is only signaled implicitly!
     """
-    orig_size = len(content_raw)
+    assert given_size >= len(content_raw)
+    orig_size = given_size
     if is_truncated:
         assert orig_size > 0
         orig_size = -orig_size
-
     return (compress_lossy(content_raw, max_length), orig_size)
 
 
@@ -178,11 +184,11 @@ class CrawlProcess:
         # Now that it has been created, proceed with the network part of crawling.
         return self
 
-    def submit_success(self, status_code, headers_raw, headers_truncated, content_raw, content_truncated, next_url):
+    def submit_success(self, status_code, headers_raw, headers_size, headers_truncated, content_raw, content_size, content_truncated, next_url):
         assert self.result is not None
         assert not self.has_submitted
-        headers, headers_orig_size = compress_content_lossy(headers_raw, headers_truncated, crawl.models.HEADERS_MAX_LENGTH)
-        content, content_orig_size = compress_content_lossy(content_raw, content_truncated, crawl.models.CONTENT_MAX_LENGTH)
+        headers, headers_orig_size = compress_content_lossy(headers_raw, headers_size, headers_truncated, crawl.models.HEADERS_MAX_LENGTH)
+        content, content_orig_size = compress_content_lossy(content_raw, content_size, content_truncated, crawl.models.CONTENT_MAX_LENGTH)
         content_file = ContentFile(content, name="<ignored>")
         # "atomic" is just (premature?) optimization, combining the two writes into one:
         with transaction.atomic():

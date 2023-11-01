@@ -5,6 +5,8 @@ from crawl import logic
 
 
 class Command(BaseCommand):
+    help = "Just retreives the given (or implied) URL, does NOT write anything to the database!"
+
     def add_arguments(self, parser):
         parser.add_argument("--url")
 
