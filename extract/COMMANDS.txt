@@ -2,7 +2,7 @@ exit 1
 
 # https://download.geofabrik.de/europe/germany.html
 cd /tmp
-curl --proto '=https' --tlsv1.2 --fail --location --max-redirs 3 'https://download.geofabrik.de/europe/germany-latest.osm.pbf'
+curl --proto '=https' --tlsv1.2 --fail --location -O  --max-redirs 3 'https://download.geofabrik.de/europe/germany-latest.osm.pbf'
 curl -s --proto '=https' --tlsv1.2 --fail 'https://download.geofabrik.de/europe/germany-latest.osm.pbf.md5' | md5sum -c -
 
 cd …/extract/
