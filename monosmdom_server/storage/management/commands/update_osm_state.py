@@ -176,37 +176,19 @@ def update_osm_state(disasters, simplified_urls):
         done_items += 1
         percent_done = done_items * 100 / len(simplified_urls)
         if percent_done >= percent_last_reported + REPORT_PERCENT_STEP:
+            cache.flush()  # Make sure we don't hog too much memory
             percent_last_reported += REPORT_PERCENT_STEP
             percent_step_ended = common.now_tzaware()
             time_now = percent_step_ended.strftime("%F %T")
             # Let's try to guess how many future inserts there will be:
             # 1 row in CrawlableUrl, and one-point-something rows in OccurrenceInOsm.
-            num_future_inserts = (1 + AVERAGE_OCCURRENCE_PER_URL) * (len(simplified_urls) - i)
-            bulk_timedelta = MEGA_INSERT_TIME * (cache.insert_count() + num_future_inserts) / 1e6
             remaining_time = (percent_step_ended - percent_step_began) * (100 - percent_done) / REPORT_PERCENT_STEP
-            eta = (percent_step_ended + remaining_time + bulk_timedelta).strftime("%F %T")
+            eta = (percent_step_ended + remaining_time).strftime("%F %T")
             print(f"      {percent_last_reported:3}% done ({done_items:6}/{len(simplified_urls):6} at time {time_now}, ETA {eta})")
             percent_step_began = percent_step_ended
-    t1 = common.now_tzaware()
-    time_now = t1.strftime("%F %T")
-    bulk_inserts = cache.insert_count()
-    bulk_timedelta = MEGA_INSERT_TIME * bulk_inserts / 1e6
-    eta = (t1 + bulk_timedelta).strftime("%F %T")
-    print(f"    Flushing bulk insert cache at time {time_now}, ETA {eta}")
-    cache.flush()
-    t2 = common.now_tzaware()
-    print(f"        hardcoded {MEGA_INSERT_TIME=}")
-    # Note: Timedelta is highly non-associative here! Its best resolution is microseconds, which
-    # would lose lots of precision.
-    measured_mega_insert_time = (t2 - t1) * (1e6 / bulk_inserts)
-    print(f"        measured MEGA_INSERT_TIME={measured_mega_insert_time!r}")
-    time_in_bulk = t2 - t1
     time_after = common.now_tzaware()
     time_now = t2.strftime("%F %T")
     print(f"Import finished at {time_now}, total time taken: {time_after - time_before}")
-    print(f"    try_crawlable_url accounts for {time_in_crurl}")
-    print(f"    register_occurrence accounts for {time_in_register_occ}")
-    print(f"    flushing bulk cache ({bulk_inserts} rows) accounts for {time_in_bulk}")
 
 
 def get_confirmation():
@@ -228,8 +210,10 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("urlfile", metavar="file_with_all_osm_urls.monosmdom.json")
+        parser.add_argument("--force", metavar="Set to OVERWRITE to skip the question")
 
-    def handle(self, *, urlfile, **options):
+    def handle(self, *, urlfile, force, **options):
+        assert force is None or force == "OVERWRITE"
         print(f"Initializing PSL …")
         logic.get_cached_psl()
 
@@ -253,13 +237,14 @@ class Command(BaseCommand):
                 import_end=common.now_tzaware(),
                 additional_data=json.dumps(additional_data),
             )
-            should_commit, reason = get_confirmation()
-            if should_commit:
-                print(f"{ANSI_GREEN}Committing!{ANSI_RESET} Making state permanent. This might take a while …")
-                # Making state permanent by returning from "atomic".
-            else:
-                print(f"{ANSI_RED}Rolling back!{ANSI_RESET} No changes will be applied ({reason})")
-                transaction.set_rollback(True)
+            if force is None:
+                should_commit, reason = get_confirmation()
+                if should_commit:
+                    print(f"{ANSI_GREEN}Committing!{ANSI_RESET} Making state permanent. This might take a while …")
+                    # Making state permanent by returning from "atomic".
+                else:
+                    print(f"{ANSI_RED}Rolling back!{ANSI_RESET} No changes will be applied ({reason})")
+                    transaction.set_rollback(True)
         if should_commit:
             print("Running 'VACUUM ANALYZE' …")
             with connection.cursor() as cursor:

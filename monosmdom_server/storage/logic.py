@@ -93,7 +93,6 @@ class LeafModelBulkCache:
         self.objs_disasterurl = []
         self.objs_crawlableurl = []
         self.objs_occurrenceinosm = []
-        self.valid = True
 
     def flush(self):
         models.DisasterUrl.objects.bulk_create(self.objs_disasterurl)
@@ -102,7 +101,6 @@ class LeafModelBulkCache:
         self.objs_crawlableurl = []
         models.OccurrenceInOsm.objects.bulk_create(self.objs_occurrenceinosm)
         self.objs_occurrenceinosm = []
-        self.valid = False
 
     def insert_count(self):
         assert self.valid
@@ -115,7 +113,6 @@ class LeafModelBulkCache:
         if cache is None:
             durl.save()
         else:
-            assert cache.valid
             cache.objs_disasterurl.append(durl)
 
     # @classmethod
@@ -127,7 +124,6 @@ class LeafModelBulkCache:
         else:
             # Note: If we use a cache, then we can assume this is a bulk import that already has
             # been deduplicated.
-            assert cache.valid
             crurl = models.CrawlableUrl(**kwargs)
             cache.objs_crawlableurl.append(crurl)
             # We shouldn't return crurl because it does not have an ID yet, and never will have.
@@ -137,7 +133,6 @@ class LeafModelBulkCache:
             return models.CrawlableUrl.DoesNotExist()
 
     def cache_occ(self, **kwargs):
-        assert self.valid
         occ = models.OccurrenceInOsm(**kwargs)
         self.objs_occurrenceinosm.append(occ)
 
