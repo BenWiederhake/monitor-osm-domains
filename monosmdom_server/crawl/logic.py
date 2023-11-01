@@ -189,7 +189,11 @@ class CrawlProcess:
         assert not self.has_submitted
         headers, headers_orig_size = compress_content_lossy(headers_raw, headers_size, headers_truncated, crawl.models.HEADERS_MAX_LENGTH)
         content, content_orig_size = compress_content_lossy(content_raw, content_size, content_truncated, crawl.models.CONTENT_MAX_LENGTH)
-        content_file = ContentFile(content, name="<ignored>")
+        if content_raw == b"" and content_size == 0 and not content_truncated:
+            # No need to save empty files. (Probably because of redirects.)
+            content_file = None
+        else:
+            content_file = ContentFile(content, name="<ignored>")
         # "atomic" is just (premature?) optimization, combining the two writes into one:
         with transaction.atomic():
             result_success = crawl.models.ResultSuccess.objects.create(
