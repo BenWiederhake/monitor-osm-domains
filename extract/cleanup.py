@@ -203,7 +203,7 @@ def simplified_url_or_disaster_reason(parse_url):
         path = "/"
     else:
         path = parts.path
-    simplified_url = urllib.parse.urlunsplit((parts.scheme, hostname, parts.path, parts.query, ""))
+    simplified_url = urllib.parse.urlunsplit((parts.scheme, hostname, path, parts.query, ""))
     return simplified_url, None
 
 
