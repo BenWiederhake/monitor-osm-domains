@@ -33,6 +33,10 @@ class Domain(models.Model):
     def __str__(self):
         return f"<Domain#{self.id} {self.domain_name}>"
 
+    upsert_update_fields = ["domain_name"]
+    upsert_unique_fields = ["domain_name"]
+    upsert_foreign_fields = []
+
 
 class Url(models.Model):
     # URLs can be insanely long, but there also seems to be a limit of 255 characters. Use that!
@@ -57,6 +61,10 @@ class Url(models.Model):
             use_url = use_url[:URL_TRUNCATION_LENGTH - 1] + "…"
         return use_url
 
+    upsert_update_fields = ["url"]
+    upsert_unique_fields = ["url"]
+    upsert_foreign_fields = []
+
 
 class DisasterUrl(models.Model):
     url = models.ForeignKey(Url, on_delete=models.RESTRICT)
@@ -64,6 +72,10 @@ class DisasterUrl(models.Model):
 
     def __str__(self):
         return f"<DisasterUrl#{self.id} {self.url.truncated}>"
+
+    upsert_update_fields = ["url", "reason"]
+    upsert_unique_fields = []
+    upsert_foreign_fields = ["url"]
 
 
 class CrawlableUrl(models.Model):
@@ -73,6 +85,10 @@ class CrawlableUrl(models.Model):
 
     def __str__(self):
         return f"<CrawlableUrl#{self.url_id} {self.url.truncated}>"
+
+    upsert_update_fields = ["url", "domain"]
+    upsert_unique_fields = []
+    upsert_foreign_fields = ["url", "domain"]
 
 
 class OccurrenceInOsm(models.Model):
@@ -90,6 +106,16 @@ class OccurrenceInOsm(models.Model):
     class Meta:
         verbose_name = "occurrence in OSM"
         verbose_name_plural = "occurrences in OSM"
+
+    upsert_update_fields = [
+        "url",
+        "osm_item_type",
+        "osm_item_id",
+        "osm_tag_key",
+        "osm_tag_value",
+    ]
+    upsert_unique_fields = []
+    upsert_foreign_fields = ["url"]
 
 
 class Import(models.Model):
