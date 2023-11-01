@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.db import connection, transaction
 from monosmdom_server import common
 from storage import logic, models
+import crawl.models
 import json
 import random
 import datetime
@@ -52,19 +53,41 @@ def read_urlfile(urlfile):
 def show_summary(when):
     print()
     print(f"  Stats {when}:")
-    print(f"    Crawl results: {models.CrawlResultSuccess.objects.count()}s + {models.CrawlResultError.objects.count()}e (should stay constant)")
+    crawl_successes = crawl.models.ResultSuccess.objects.count()
+    crawl_errors = crawl.models.ResultError.objects.count()
+    print(f"    Crawl results: {crawl_successes}s + {crawl_errors}e (should stay constant)")
     urls_total = models.Url.objects.count()
     disaster_entries_total = models.DisasterUrl.objects.count()
     disaster_urls_total = models.DisasterUrl.objects.all().distinct().count()
     crawlable_total = models.CrawlableUrl.objects.count()
+    ignored_obsolete = urls_total - disaster_urls_total - crawlable_total
     print(f"    Total URLs known: {urls_total}")
     print(f"      … disaster URLs: {disaster_urls_total}")
     print(f"        … total entries: {disaster_entries_total}")
     print(f"      … crawlable URLs: {crawlable_total}")
-    print(f"      … ignored/obsolete: {urls_total - disaster_urls_total - crawlable_total} (calculated)")
-    print(f"    Total Domains known: {models.Domain.objects.count()}")
-    print(f"    Total URL detections in OSM data: {models.OccurrenceInOsm.objects.count()}")
+    print(f"      … ignored/obsolete: {ignored_obsolete} (calculated)")
+    domain_count = models.Domain.objects.count()
+    print(f"    Total Domains known: {domain_count}")
+    osm_occurrence_count = models.OccurrenceInOsm.objects.count()
+    print(f"    Total URL detections in OSM data: {osm_occurrence_count}")
     print()
+    return dict(
+        crawl=dict(
+            success=crawl_successes,
+            error=crawl_errors,
+        ),
+        urls=dict(
+            total=urls_total,
+            disaster=dict(
+                entries=disaster_entries_total,
+                unique_urls=disaster_urls_total,
+            ),
+            crawlable=crawlable_total,
+            ignored_obsolete=ignored_obsolete,
+        ),
+        domains=domain_count,
+        osm_occurrences=osm_occurrence_count,
+    )
 
 
 def register_occurrence(url_object, occ_dict):
@@ -159,14 +182,25 @@ class Command(BaseCommand):
         disasters, simplified_urls = read_urlfile(urlfile)
 
         with transaction.atomic():
-            show_summary("before")
+            import_begin = common.now_tzaware()
+            summary_before = show_summary("before")
             print(f"Importing at least {len(disasters)} disasters and at most {len(simplified_urls)} crawlable URLs …")
             print(f"    (Numbers might change slightly due to ignored or unregistered domains.)")
             update_osm_state(disasters, simplified_urls)
-            show_summary("after")
+            summary_after = show_summary("after")
+            additional_data = dict(
+                summary_before=summary_before,
+                summary_after=summary_after,
+            )
+            models.Import.objects.create(
+                urlfile_name=urlfile,
+                import_begin=import_begin,
+                import_end=common.now_tzaware(),
+                additional_data=json.dumps(additional_data),
+            )
             should_commit, reason = get_confirmation()
             if should_commit:
-                print(f"{ANSI_GREEN}Committing!{ANSI_RESET} Making state permanent …")
+                print(f"{ANSI_GREEN}Committing!{ANSI_RESET} Making state permanent. This might take a while …")
                 # Making state permanent by returning from "atomic".
             else:
                 print(f"{ANSI_RED}Rolling back!{ANSI_RESET} No changes will be applied ({reason})")

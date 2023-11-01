@@ -64,11 +64,6 @@ class CrawlableUrlAdminForm(ReadOnlyModelAdmin):
         return obj.url.truncated
 
 
-# admin.site.register(models.CrawlResult)
-# admin.site.register(models.CrawlResultSuccess)
-# admin.site.register(models.CrawlResultError)
-
-
 @admin.register(models.OccurrenceInOsm)
 class OccurrenceInOsmAdminForm(ReadOnlyModelAdmin):
     list_display = ["truncated_url", "osm_entry", "tag"]
@@ -86,3 +81,12 @@ class OccurrenceInOsmAdminForm(ReadOnlyModelAdmin):
         if len(tag_value) > 20:
             tag_value = tag_value[:20 - 1] + "…"
         return f"{obj.osm_tag_key}={tag_value}"
+
+
+@admin.register(models.Import)
+class ImportAdminForm(ReadOnlyModelAdmin):
+    list_display = ["import_begin", "urlfile_name"]
+    readonly_fields = ["urlfile_name", "import_begin", "import_end", "import_duration", "additional_data"]
+
+    def import_duration(self, obj):
+        return obj.import_end - obj.import_begin

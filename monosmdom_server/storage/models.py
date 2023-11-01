@@ -90,3 +90,10 @@ class OccurrenceInOsm(models.Model):
     class Meta:
         verbose_name = "occurrence in OSM"
         verbose_name_plural = "occurrences in OSM"
+
+
+class Import(models.Model):
+    urlfile_name = models.CharField(max_length=200)
+    import_begin = models.DateTimeField()
+    import_end = models.DateTimeField()
+    additional_data = models.TextField()  # JSON
