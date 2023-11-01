@@ -110,7 +110,7 @@ def update_osm_state(disasters, simplified_urls):
         # Note: This duplicates the "Syntactical" check that was already done during "extract/cleanup.py".
         # However, this means very little additional work, and deduplicating the code seems more important on this occasion.
         # TODO: The semantical checks still are a lot of work. Can this be precomputed and bulk-inserted instead?
-        maybe_crawlable = logic.try_crawlable_url(url_string)
+        maybe_crawlable = logic.try_crawlable_url(url_string, create_disaster=True)
         for occ_dict in occs:
             register_occurrence(maybe_crawlable.url_obj, occ_dict)
         # if maybe_crawlable.crawlable_url_obj_or_none is None:

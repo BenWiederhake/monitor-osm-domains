@@ -91,15 +91,16 @@ def upsert_url(raw_url):
 MaybeCrawlableResult = collections.namedtuple("MaybeCrawlableResult", ["url_obj", "crawlable_url_obj_or_none"])
 
 
-def try_crawlable_url(url_string):
+def try_crawlable_url(url_string, create_disaster):
     """
     Given a dirty URL string, this function runs a few sanity checks:
     - Syntactical checks test for illegal schemes, ports, auth info, etc. (see ../../extract/cleanup.py).
     - Semantical checks try to determine a registrable second-level-domain (according to PSL data).
     - Interest check: Does the hostname occur in 'IGNORED_HOSTNAMES'?
     Depending on these checks, it does one of the following:
-    (1) If a syntactical or semantical check fails, a corresponding Url and one DisasterUrl is created,
-        and the Url instance is returned.
+    (1) If a syntactical or semantical check fails, a corresponding Url and perhaps one DisasterUrl
+        is created, and the Url instance is returned. (Whether a DisasterUrl is created depends on
+        the create_disaster argument.)
     (2) If the interest check fails, only a corresponding Url is created, and the Url instance is returned.
     (3) If all checks pass, a corresponding Url, CrawlableUrl, and Domain is created, and the Url
         and CrawlableUrl instances are returned.
@@ -117,9 +118,7 @@ def try_crawlable_url(url_string):
     Guarantees:
     - The return values are always of type MaybeCrawlableResult.
     - Url/Domain/CrawlableUrl are upserted; i.e. if they already exist in the DB, the existing row will be used.
-      (Note that duplicate DisasterUrls are somewhat reasonable.)
-      FIXME: No, they aren't! Avoid creating duplicate DisasterUrls in case of identical reasons.
-      This can happen if for example a server redirects all (distinct) URLs to the same invalid URL.
+      (Note that duplicate DisasterUrls are somewhat reasonable during import.)
     - CrawlableUrl" instance is created and linked, and the CrawlableUrl instance is returned.
 
     FIXME: This obviously needs tests.
@@ -140,7 +139,7 @@ def try_crawlable_url(url_string):
             disaster_reason = "has no public suffix"
     # === Handle syntactical/semantical failure:
     if disaster_reason is not None:
-        models.DisasterUrl.create(url=url_object, reason=disaster_reason)
+        models.DisasterUrl.objects.create(url=url_object, reason=disaster_reason)
         return MaybeCrawlableResult(url_object, None)
     # === Handle interest failure:
     if not have_interest:

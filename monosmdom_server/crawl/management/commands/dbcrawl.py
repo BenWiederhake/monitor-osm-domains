@@ -35,7 +35,11 @@ def crawl_prepared_url(crurl, curl_wrapper):
             if result is not None:
                 next_url = None
                 if result.location is not None:
-                    maybe_next_crawlable = storage.logic.try_crawlable_url(result.location)
+                    # If the redirect goes to a disastrous URL, do not create a DisasterUrl entry.
+                    # This is bad, actually! We don't find "dead" redirect chains that way.
+                    # FIXME: Log disaster URLs even in redirect chains
+                    # … but in a way that doesn't spam the database with useless duplicates.
+                    maybe_next_crawlable = storage.logic.try_crawlable_url(result.location, create_disaster=False)
                     next_url = maybe_next_crawlable.url_obj
                     # If a redirect to a valid URL that we want to crawl, continue there:
                     crurl = maybe_next_crawlable.crawlable_url_obj_or_none
