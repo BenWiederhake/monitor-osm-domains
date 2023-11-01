@@ -13,9 +13,21 @@ REPORT_PERCENT_STEP = 2  # Must be a divisor of 100
 ANSI_RESET = "\x1b[0m"
 ANSI_RED = "\x1b[91m"
 ANSI_GREEN = "\x1b[92m"
+
+# === STATS FOR ETA PREDICTION ===
 # How many seconds do 1 million inserts though bulk_create take?
 # This is only used for ETA estimation.
 MEGA_INSERT_TIME = datetime.timedelta(seconds=75, milliseconds=600)
+# How many OccurrenceInOsm entries are there per CrawlableURL? Here's the histogram of random subset:
+# num_seen  1  1  1  1  1  1  1  1  1  1  1  1  1   1   1  2  2  2 3  3 4  5 6  7 13 24 40 102 561 10772
+# num_occs 16 18 19 20 23 25 27 28 34 35 58 60 81 344 880 11 14 24 7 13 8 12 9 10  6  5  4   3   2     1
+# The statistical values for the "true" distribution from a later snapshot (which apparently reduced
+# the maximum entries): Maximum 10456 entries, 7.3% of URLs have 2 or more occs, 1.01% of URLs have
+# 23 or more occs, 0.1% of URLs have 156 or more occs, 0.0156% of URLs have 1190 or more occs.
+# Average is 1.244 occs per URL. If we don't count URLs with 1190 or more occs, the average drops to
+# 1.207. Stddev is 16.1 (removing the outliers drops this to 4.2, which is still insanely large).
+# Let's use a slightly-too-large average to compensate for slowdown and deadline perception bias.
+AVERAGE_OCCURRENCE_PER_URL = 1.25
 
 
 assert 100 % REPORT_PERCENT_STEP == 0
@@ -149,7 +161,7 @@ def update_osm_state(disasters, simplified_urls):
     time_before = percent_step_began
     time_in_crurl = datetime.timedelta(0)
     time_in_register_occ = datetime.timedelta(0)
-    for url_string, occs in simplified_urls.items():
+    for i, (url_string, occs) in enumerate(simplified_urls.items()):
         # Note: This duplicates the "Syntactical" check that was already done during "extract/cleanup.py".
         # However, this means very little additional work, and deduplicating the code seems more important on this occasion.
         # TODO: The semantical checks still are a lot of work. Can this be precomputed and bulk-inserted instead?
@@ -167,7 +179,10 @@ def update_osm_state(disasters, simplified_urls):
             percent_last_reported += REPORT_PERCENT_STEP
             percent_step_ended = common.now_tzaware()
             time_now = percent_step_ended.strftime("%F %T")
-            bulk_timedelta = MEGA_INSERT_TIME * cache.insert_count() / 1e6
+            # Let's try to guess how many future inserts there will be:
+            # 1 row in CrawlableUrl, and one-point-something rows in OccurrenceInOsm.
+            num_future_inserts = (1 + AVERAGE_OCCURRENCE_PER_URL) * (len(simplified_urls) - i)
+            bulk_timedelta = MEGA_INSERT_TIME * (cache.insert_count() + num_future_inserts) / 1e6
             remaining_time = (percent_step_ended - percent_step_began) * (100 - percent_done) / REPORT_PERCENT_STEP
             eta = (percent_step_ended + remaining_time + bulk_timedelta).strftime("%F %T")
             print(f"      {percent_last_reported:3}% done ({done_items:6}/{len(simplified_urls):6} at time {time_now}, ETA {eta})")
