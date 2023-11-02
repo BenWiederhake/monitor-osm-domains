@@ -387,7 +387,7 @@ class LockedCurl:
                     errstr=errstr,
                     # curl internally overwrites the response code with 0 before doing anything in
                     # perform(), so this is never outdated:
-                    response_code=c.getinfo(pycurl.RESPONSE_CODE),
+                    response_code=self.c.getinfo(pycurl.RESPONSE_CODE),
                     header_size_recv=result.header.size,
                     body_size_recv=result.body.size,
                 )

@@ -59,7 +59,7 @@ def crawl_prepared_url(crurl, curl_wrapper):
                 print(f"    saved as {result_success.content_file}")
                 last_request = process.result
             if errdict is not None:
-                process.submit_error(curl_errdict)
+                process.submit_error(errdict)
         if crurl is None:
             # Done crawling the original crawlable URL, we have reached the end of the (possibly
             # empty) redirect chain.
