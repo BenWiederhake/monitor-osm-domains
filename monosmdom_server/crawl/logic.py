@@ -11,6 +11,7 @@ import json
 import logging
 import pycurl
 import storage
+import traceback
 
 
 CRAWL_DOMAIN_DELAY_DAYS = 60
@@ -229,7 +230,7 @@ class CrawlProcess:
         # Only now switch off exception-logging:
         self.has_submitted = True
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type, value, tb):
         assert self.result is not None
         if self.has_submitted:
             return
@@ -238,7 +239,7 @@ class CrawlProcess:
             type="exception_or_missing_submit",
             exc_type=repr(type),
             value=repr(value),
-            # class "traceback" is weird, and not easily serializable. Skip it entirely.
+            traceback=traceback.format_tb(tb),
         )
         # If we're not the outermost atomic, then this insertion would be rolled back instantly.
         # We try to avoid that by using durable=True.
