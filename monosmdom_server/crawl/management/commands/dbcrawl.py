@@ -8,6 +8,9 @@ import storage
 import storage.logic
 import time
 
+# Disgusting hack because there's too much buffering going on:
+print = functools.partial(print, flush=True)
+
 SLEEP_IF_NO_MATCH_SECONDS = 3600
 MAX_REDIRECT_DEPTH = 10
 # A redirect really *really* should be cheap. If this overwhelmes your server, it absolutely is your
