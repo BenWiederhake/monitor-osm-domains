@@ -1,5 +1,6 @@
 from django.contrib import admin
 from crawl import models
+import base64
 
 # TODO: Search?
 # TODO: Filter?
@@ -50,11 +51,17 @@ class ResultSuccessAdminForm(ReadDeleteOnlyModelAdmin):
 @admin.register(models.ResultError)
 class ResultErrorAdminForm(ReadDeleteOnlyModelAdmin):
     # TODO: Action (conditional): Prune content
-    list_display = ["truncated_url", "crawl_begin"]
-    readonly_fields = ["description_json"]
+    list_display = ["truncated_url", "is_internal_error", "crawl_begin"]
+    readonly_fields = ["is_internal_error", "description_json", "description_json_b64", "show_traceback_code"]
 
     def truncated_url(self, obj):
         return obj.result.url.truncated
 
     def crawl_begin(self, obj):
         return obj.result.crawl_begin
+
+    def description_json_b64(self, obj):
+        return base64.b64encode(obj.description_json.encode())
+
+    def show_traceback_code(self, obj):
+        return "print(''.join(base64.b64decode(b64data).decode()['traceback']))"

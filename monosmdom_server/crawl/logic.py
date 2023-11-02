@@ -241,6 +241,7 @@ class CrawlProcess:
             value=repr(value),
             traceback=traceback.format_tb(tb),
         )
+        print("".join(traceback.format_tb(tb)))
         # If we're not the outermost atomic, then this insertion would be rolled back instantly.
         # We try to avoid that by using durable=True.
         with transaction.atomic(durable=True):
