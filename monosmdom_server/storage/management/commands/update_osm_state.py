@@ -245,6 +245,8 @@ class Command(BaseCommand):
                 else:
                     print(f"{ANSI_RED}Rolling back!{ANSI_RESET} No changes will be applied ({reason})")
                     transaction.set_rollback(True)
+            else:
+                should_commit = True
         if should_commit:
             print("Running 'VACUUM ANALYZE' …")
             with connection.cursor() as cursor:
