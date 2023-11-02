@@ -307,7 +307,7 @@ class LockedCurl:
             print(f"  {settings.CAINFO_ROOT_AND_INTERMEDIATE=}")
             print(f"  {settings.CRAWLER_USERAGENT_EMAIL=}")
         # Note that this is only about local caching of settings, especially of the heavy CA bundle.
-        self.c.setopt(pycurl.CAINFO, settings.CAINFO_ROOT_AND_INTERMEDIATE)
+        self.c.setopt(pycurl.CAINFO, settings.CAINFO_ROOT_AND_INTERMEDIATE.encode())
         # Also disable the system store, fail-fast, to detect config problems quicker:
         self.c.setopt(pycurl.CAPATH, None)
         # Connections cannot usually be shared or reused, since we actively *avoid* contacting the
@@ -324,7 +324,7 @@ class LockedCurl:
         # program – maybe I was even the person running it! Write me an e-mail and say hi :D
         self.c.setopt(
             pycurl.USERAGENT,
-            f"monosmdom-crawler/0.0.1 (contact: {settings.CRAWLER_USERAGENT_EMAIL}) (codename: SuperTallSoupFleece)",
+            f"monosmdom-crawler/0.0.1 (contact: {settings.CRAWLER_USERAGENT_EMAIL}) (codename: SuperTallSoupFleece)".encode(),
         )
         self.c.setopt(pycurl.MAX_RECV_SPEED_LARGE, MAX_RECV_SPEED_BPS)
         # Enable all built-ins (which also enables auto-decompression)
@@ -364,7 +364,7 @@ class LockedCurl:
         result = LockedCurlResult()
         self.c.setopt(pycurl.HEADERFUNCTION, result.header.recv_callback)
         self.c.setopt(pycurl.WRITEFUNCTION, result.body.recv_callback)
-        self.c.setopt(pycurl.URL, url)
+        self.c.setopt(pycurl.URL, url.encode())
         # Can't use referers, since unsetopt(pycurl.REFERER) refuses to work :(
         try:
             # Note: perform() calls into the C stack, which calls into the python stack in
