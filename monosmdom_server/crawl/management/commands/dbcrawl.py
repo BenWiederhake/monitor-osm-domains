@@ -59,8 +59,9 @@ def crawl_prepared_url(crurl, curl_wrapper):
                     next_url,
                 )
                 print(f"    saved as {result_success.content_file}")
-                last_request = process.result
+                last_request = result_success
             if errdict is not None:
+                print(f"    curl reports error: {errdict['errstr']}")
                 process.submit_error(errdict)
         if crurl is None:
             # Done crawling the original crawlable URL, we have reached the end of the (possibly
@@ -156,6 +157,7 @@ class Command(BaseCommand):
             assert crurl_row is not None, "URL exists, but is not marked as crawlable for unknown reasons."
             do_one_crawl = functools.partial(crawl_cli_url, crurl_row)
         curl_wrapper = logic.LockedCurl()
+        print("Begin crawling!")
         while True:
             if os.path.exists("/tmp/STOP_OSMMONDOM"):
                 print("/tmp/STOP_OSMMONDOM exists, shutting down!")
