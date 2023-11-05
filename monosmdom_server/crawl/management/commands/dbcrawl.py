@@ -26,7 +26,7 @@ def crawl_prepared_url(crurl, curl_wrapper):
         time.sleep(SLEEP_IF_NO_MATCH_SECONDS)
         return
     last_request = None
-    for _ in range(MAX_REDIRECT_DEPTH):
+    for iteration in range(MAX_REDIRECT_DEPTH):
         assert crurl is not None
         print(f"Crawling {crurl} now …")
         with logic.CrawlProcess(crurl) as process:
@@ -34,6 +34,7 @@ def crawl_prepared_url(crurl, curl_wrapper):
                 last_request.next_request = process.result
                 last_request.save()
             result, errdict = curl_wrapper.crawl_response_or_errdict(crurl.url.url)
+            previous_domain = crurl.domain
             crurl = None  # Done crawling, probably.
             if result is not None:
                 next_url = None
@@ -64,6 +65,22 @@ def crawl_prepared_url(crurl, curl_wrapper):
             # Done crawling the original crawlable URL, we have reached the end of the (possibly
             # empty) redirect chain.
             return
+        if iteration + 1 != MAX_REDIRECT_DEPTH and crurl.domain != previous_domain:
+            # If we were redirected to an entirely new domain, this created a new Domain row.
+            # Currently, this causes some issues:
+            # 1. There is a potential race with concurrent dbcrawlers which might fetch the
+            #    newly-created CrawlableUrl and crawl it. Bad.
+            #    To counter this, make sure that the time window for this race is as small as
+            #    possible: Bump the domain before sleeping.
+            # 2. We might unintentionally send two or three requests per month instead of just one
+            #    per domain. Oh well.
+            # 3. An attacker might take over lots of domains and redirect them all to some victim
+            #    site, that we now unintentionally "flood" with requests (once very 1+2 seconds).
+            #    Bad.
+            #    To counter this, we wait a bit longer when bumping is unsuccessful.
+            bumped_domain = lock_then_bump_domain(crurl.domain)
+            print(f"  Got redirected from {previous_domain.domain_name} to {crurl.domain.domain_name}, which is still on cooldown. Sleeping a bit extra …")
+            time.sleep(SLEEP_REDIRECT_SECONDS)
         time.sleep(SLEEP_REDIRECT_SECONDS)
     print(f"Redirect chain is too long! {MAX_REDIRECT_DEPTH=}")
 

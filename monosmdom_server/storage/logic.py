@@ -174,6 +174,7 @@ def try_crawlable_url(url_string, create_disaster, *, cache=None):
     """
     # Note that we don't apply regex-fixups to redirects, since these should absolutely be valid URLs already.
     # === Syntactical check:
+    # FIXME: Use create_disaster? See also related FIXME in dbcrawl.
     simplified_url, disaster_reason = extract_cleanup.simplified_url_or_disaster_reason(url_string)
     assert (simplified_url is None) != (disaster_reason is None)
     if cache is not None:
