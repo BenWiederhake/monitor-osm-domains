@@ -4,6 +4,7 @@ from crawl import logic
 from django.core.management.base import BaseCommand
 from django.db import transaction
 import functools
+import os.path
 import storage
 import storage.logic
 import time
@@ -156,6 +157,9 @@ class Command(BaseCommand):
             do_one_crawl = functools.partial(crawl_cli_url, crurl_row)
         curl_wrapper = logic.LockedCurl()
         while True:
+            if os.path.exists("/tmp/STOP_OSMMONDOM"):
+                print("/tmp/STOP_OSMMONDOM exists, shutting down!")
+                exit(2)
             do_one_crawl(curl_wrapper)
             if next_delay_seconds is not None:
                 print(f"Sleeping {next_delay_seconds} seconds …")

@@ -25,6 +25,21 @@ MAX_BODY_STOP_COUNT = crawl.models.CONTENT_MAX_LENGTH * 100
 # bytes per second; only a guideline, not a limit:
 MAX_RECV_SPEED_BPS = 1_048_576
 MAX_CONN_TIMEOUT_MS = 10_000
+IGNORED_STATUS_CODES = {
+    301,  # Moved Permanently
+    302,  # Found (in practice: temporary redirect)
+    304,  # Not Modified (should never be seen though)
+    307,  # Temporary Redirect
+    308,  # Permanent Redirect
+    400,  # Oh no
+    401,  # Unauthorized
+    402,  # Payment required
+    403,  # Forbidden
+    404,  # Not Found
+    410,  # Gone
+    500,  # Internal Server Error
+    502,  # Bad Gateway
+}
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +206,10 @@ class CrawlProcess:
         headers, headers_orig_size = compress_content_lossy(headers_raw, headers_size, headers_truncated, crawl.models.HEADERS_MAX_LENGTH)
         content, content_orig_size = compress_content_lossy(content_raw, content_size, content_truncated, crawl.models.CONTENT_MAX_LENGTH)
         if content_raw == b"" and content_size == 0 and not content_truncated:
-            # No need to save empty files. (Probably because of redirects.)
+            # No need to save empty files. (Server errors, 500s, etc.)
+            content_file = None
+        elif status_code in IGNORED_STATUS_CODES:
+            # No need to save useless files (Redirects, 404s, etc.)
             content_file = None
         else:
             content_file = ContentFile(content, name="<ignored>")
