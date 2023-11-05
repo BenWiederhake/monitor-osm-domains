@@ -173,6 +173,8 @@ def simplified_url_or_disaster_reason(parse_url):
         return None, f"contains login information, not crawling"
     if parts.port is not None:
         # Technically, using ports is not disastrous – but still highly questionable.
+        # FIXME: Should allow port 443, since a disturbingly high number of servers redirect
+        # from "https://example.com/" to "https://example.com:443/"
         return None, f"refusing to use forced port {parts.port}"
     hostname = parts.hostname
     if hostname is not None:
