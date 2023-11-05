@@ -23,8 +23,13 @@ def item_type_to_name(item_type_char):
 
 
 # TODO: This should live somewhere else.
-def occ_to_editor_url(occ_obj):
+def occ_to_editor_id_url(occ_obj):
     return f"https://www.openstreetmap.org/edit?{item_type_to_name(occ_obj.osm_item_type)}={occ_obj.osm_item_id}"
+
+
+# TODO: This should live somewhere else.
+def occ_to_editor_josm_url(occ_obj):
+    return f"http://localhost:8111/load_object?objects={occ_obj.osm_item_type}{occ_obj.osm_item_id}"
 
 
 class ReadOnlyModelAdmin(admin.ModelAdmin):
@@ -76,14 +81,18 @@ class CrawlableUrlDomainInline(admin.TabularInline):
 
 class OsmOccurrenceInline(admin.TabularInline):
     model = models.OccurrenceInOsm
-    readonly_fields = ["editor_url", "inspect"]
-    fields = ["editor_url", "inspect"]
+    readonly_fields = ["editor_id_url", "editor_josm_url", "inspect"]
+    fields = ["editor_id_url", "editor_josm_url", "inspect"]
 
     def inspect(self, obj):
         return format_html("<a href={}>{}</a>", reverse("admin:storage_occurrenceinosm_change", args=(obj.id,)), str(obj))
 
-    def editor_url(self, obj):
-        osm_url = occ_to_editor_url(obj)
+    def editor_id_url(self, obj):
+        osm_url = occ_to_editor_id_url(obj)
+        return format_html("<a href={0}>{0}</a>", osm_url)
+
+    def editor_josm_url(self, obj):
+        osm_url = occ_to_editor_josm_url(obj)
         return format_html("<a href={0}>{0}</a>", osm_url)
 
 
@@ -163,7 +172,7 @@ class CrawlableUrlAdminForm(ReadOnlyModelAdmin):
 @admin.register(models.OccurrenceInOsm)
 class OccurrenceInOsmAdminForm(ReadOnlyModelAdmin):
     list_display = ["truncated_url", "osm_entry", "tag"]
-    readonly_fields = ["url", "osm_item_type", "osm_item_id", "osm_tag_key", "osm_tag_value", "edit_on_osm"]
+    readonly_fields = ["url", "osm_item_type", "osm_item_id", "osm_tag_key", "osm_tag_value", "edit_in_id", "edit_in_josm"]
     # TODO: Link to OSM website
 
     def truncated_url(self, obj):
@@ -178,8 +187,12 @@ class OccurrenceInOsmAdminForm(ReadOnlyModelAdmin):
             tag_value = tag_value[:20 - 1] + "…"
         return f"{obj.osm_tag_key}={tag_value}"
 
-    def edit_on_osm(self, obj):
-        osm_url = occ_to_editor_url(obj)
+    def edit_in_id(self, obj):
+        osm_url = occ_to_editor_id_url(obj)
+        return format_html("<a href={0}>{0}</a>", osm_url)
+
+    def edit_in_josm(self, obj):
+        osm_url = occ_to_editor_josm_url(obj)
         return format_html("<a href={0}>{0}</a>", osm_url)
 
 
