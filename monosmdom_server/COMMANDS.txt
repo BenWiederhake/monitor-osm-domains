@@ -1,0 +1,26 @@
+# Import an OSM link dump:
+./manage.py update_osm_state ~/all_20231101.monosmdom.json
+# Or if you want to skip the sanity-check screen:
+./manage.py update_osm_state ~/all_20231101.monosmdom.json --force OVERWRITE
+
+# Run the interactive web server (which does not crawl):
+gunicorn --error-logfile - --reload --bind 0.0.0.0:8000 monosmdom_server.wsgi:application
+
+# Run the crawler (which does not provide any useful means of interacting with the data directly, just dumps it in the DB)
+# Single-shot:
+./manage.py dbcrawl --url "https://specific.simplified.url/that/appears/verbatim/in/the/DB"
+./manage.py dbcrawl --domain specific.verbatim.existing.domain
+./manage.py dbcrawl --random-url
+# Automatically keep crawling:
+./manage.py dbcrawl --random-url --next-delay-seconds 1
+
+# Check whether curl even works (does NOT write anything to the database!)
+./manage.py minicrawl "https://example.com"
+
+cd /path/to/monosmdom_media/res/
+# Find worst causes of duplicates:
+find -type f | xargs sha256sum | sort | uniq -cdw16 | sort -n | tail
+
+# Clear FileField cells in the database that point to deleted files.
+# (For example, those that you deleted as part of a cleanup after the previous duplicate-detection.)
+./manage.py clear_deleted
