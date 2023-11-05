@@ -1,5 +1,7 @@
-from django.contrib import admin
 from crawl import models
+from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 import base64
 
 # TODO: Search?
@@ -17,10 +19,50 @@ class ReadDeleteOnlyModelAdmin(admin.ModelAdmin):
         return False
 
 
+class ResultSuccessRedirectInline(admin.TabularInline):
+    model = models.ResultSuccess
+    fk_name = "next_request"
+    readonly_fields = ["cause"]
+    fields = ["cause"]
+    verbose_name = "Redirect from"
+    verbose_name_plural = "Redirects from"
+
+    def cause(self, obj):
+        return format_html("<a href={}>{}</a>", reverse("admin:crawl_resultsuccess_change", args=(obj.result_id,)), str(obj))
+
+
+class ResultSuccessInline(admin.TabularInline):
+    model = models.ResultSuccess
+    fk_name = "result"
+    readonly_fields = ["inspect"]
+    fields = ["inspect"]
+    verbose_name = "Success"
+    verbose_name_plural = "Success"
+
+    def inspect(self, obj):
+        return format_html("<a href={}>{}</a>", reverse("admin:crawl_resultsuccess_change", args=(obj.result_id,)), str(obj))
+
+
+class ResultErrorInline(admin.TabularInline):
+    model = models.ResultError
+    readonly_fields = ["inspect"]
+    fields = ["inspect"]
+    verbose_name = "Error"
+    verbose_name_plural = "Error"
+
+    def inspect(self, obj):
+        return format_html("<a href={}>{}</a>", reverse("admin:crawl_resulterror_change", args=(obj.result_id,)), str(obj))
+
+
 @admin.register(models.Result)
 class ResultAdminForm(ReadDeleteOnlyModelAdmin):
     list_display = ["truncated_url", "crawl_begin"]
     readonly_fields = ["url", "crawl_begin", "crawl_end"]
+    inlines = [
+        ResultSuccessInline,
+        ResultErrorInline,
+        ResultSuccessRedirectInline,
+    ]
     # TODO: Action: Remove completely
     # TODO: Action: Go to Error/Success
     # TODO: Info: show whether error/success exist

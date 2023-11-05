@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 from storage import models
+import crawl
 
 # TODO: Search?
 # TODO: Filter?
@@ -42,15 +43,16 @@ class ReadOnlyModelAdmin(admin.ModelAdmin):
 
 class CrawlableUrlSelfInline(admin.TabularInline):
     model = models.CrawlableUrl
-    readonly_fields = ["content_url", "crurl"]
-    fields = ["content_url", "crurl"]
+    readonly_fields = ["content_url", "inspect"]
+    fields = ["content_url", "inspect"]
 
     @admin.display(description="URL")
     def content_url(self, obj):
         return obj.url.url
 
-    def crurl(self, obj):
-        return format_html("<a href={}>{}</a>", reverse("admin:storage_crawlableurl_change", args=(obj.id,)), str(obj))
+    def inspect(self, obj):
+        print(f"Inspect called on {obj}")
+        return format_html("<a href={}>{}</a>", reverse("admin:storage_crawlableurl_change", args=(obj.url_id,)), str(obj))
 
 
 @admin.register(models.Domain)
@@ -74,10 +76,10 @@ class CrawlableUrlDomainInline(admin.TabularInline):
 
 class OsmOccurrenceInline(admin.TabularInline):
     model = models.OccurrenceInOsm
-    readonly_fields = ["editor_url", "occ"]
-    fields = ["editor_url", "occ"]
+    readonly_fields = ["editor_url", "inspect"]
+    fields = ["editor_url", "inspect"]
 
-    def occ(self, obj):
+    def inspect(self, obj):
         return format_html("<a href={}>{}</a>", reverse("admin:storage_occurrenceinosm_change", args=(obj.id,)), str(obj))
 
     def editor_url(self, obj):
@@ -91,6 +93,34 @@ class DisasterUrlInline(admin.TabularInline):
     fields = ["reason"]
 
 
+class ResultInline(admin.TabularInline):
+    model = crawl.models.Result
+    readonly_fields = ["crawl_begin", "inspect"]
+    fields = ["crawl_begin", "inspect"]
+
+    def inspect(self, obj):
+        return format_html("<a href={}>{}</a>", reverse("admin:crawl_result_change", args=(obj.id,)), str(obj))
+
+
+class ResultSuccessInline(admin.TabularInline):
+    # TODO: "prefetch_related" might really help here.
+    model = crawl.models.ResultSuccess
+    readonly_fields = ["redir_from", "seen_on", "inspect"]
+    fields = ["redir_from", "seen_on", "inspect"]
+    verbose_name = "Redirect from"
+    verbose_name_plural = "Redirects from"
+
+    def redir_from(self, obj):
+        source_url = obj.result.url
+        return format_html("<a href={}>{}</a>", reverse("admin:storage_url_change", args=(source_url.id,)), str(source_url))
+
+    def seen_on(self, obj):
+        return obj.result.crawl_begin
+
+    def inspect(self, obj):
+        return format_html("<a href={}>{}</a>", reverse("admin:crawl_resultsuccess_change", args=(obj.result_id,)), str(obj))
+
+
 @admin.register(models.Url)
 class UrlAdminForm(ReadOnlyModelAdmin):
     list_display = ["url"]
@@ -99,9 +129,9 @@ class UrlAdminForm(ReadOnlyModelAdmin):
         CrawlableUrlDomainInline,
         OsmOccurrenceInline,
         DisasterUrlInline,
+        ResultInline,
+        ResultSuccessInline,
     ]
-    # TODO: Link to related objects (DisasterUrl, CrawlableUrl, query for CrawlResult, query for OccurrenceInOsm)
-    # TODO: Link to OSM website
 
     def has_add_permission(self, request, obj=None):
         # Imports/discoveries shouldn't go through the admin interface.
