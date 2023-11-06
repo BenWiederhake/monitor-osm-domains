@@ -24,3 +24,12 @@ find -type f | xargs sha256sum | sort | uniq -cdw16 | sort -n | tail
 # Clear FileField cells in the database that point to deleted files.
 # (For example, those that you deleted as part of a cleanup after the previous duplicate-detection.)
 ./manage.py clear_deleted
+
+# Download database:
+ssh myserver pg_dump --verbose --clean --no-acl --no-owner --if-exists monosmdom > myserver_monosmdom_pg_dump.psql
+# Download (add-only) crawl results. Trailing slashes must be exactly like this:
+rsync --stats -av myserver:/path/to/monosmdom_media/res/ /path/to/local/monosmdom_media/res
+# Import database:
+dropdb monosmdom_mirror
+createdb monosmdom_mirror
+psql --set ON_ERROR_STOP=on monosmdom_mirror < myserver_monosmdom_pg_dump.psql
