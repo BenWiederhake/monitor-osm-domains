@@ -130,6 +130,80 @@ class ResultSuccessInline(admin.TabularInline):
         return format_html("<a href={}>{}</a>", reverse("admin:crawl_resultsuccess_change", args=(obj.result_id,)), str(obj))
 
 
+class UrlTypeFilter(admin.SimpleListFilter):
+    title = "crawlability"
+    parameter_name = "cr_p"  # Only used in the URL
+
+    def lookups(self, _request, _model_admin):
+        return [
+            ("d", "Disastrous (and new)"),
+            ("c", "Crawlable"),
+            ("n", "Outdated / Ignored / Redirect"),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == "d":
+            return queryset.filter(
+                disasterurl__isnull=False,
+            )
+        if self.value() == "c":
+            return queryset.filter(
+                crawlableurl__isnull=False,
+            )
+        if self.value() == "n":
+            return queryset.filter(
+                disasterurl__isnull=True,
+                crawlableurl__isnull=True,
+            )
+        # Return None to indicate fallthrough
+
+
+class UrlRedirInFilter(admin.SimpleListFilter):
+    title = "incoming redirect"
+    parameter_name = "in3"  # Only used in the URL
+
+    def lookups(self, _request, _model_admin):
+        return [
+            ("y", "Is redirect target"),
+            ("n", "Is not a target"),
+        ]
+
+    def queryset(self, request, queryset):
+        # TODO: Don't consider "outdated" crawl.models.Result. What is "outdated"?
+        if self.value() == "y":
+            return queryset.filter(
+                resultsuccess__isnull=False,
+            ).distinct()
+        if self.value() == "n":
+            return queryset.filter(
+                resultsuccess__isnull=True,
+            ).distinct()
+        # Return None to indicate fallthrough
+
+
+class UrlRedirOutFilter(admin.SimpleListFilter):
+    title = "outgoing redirect"
+    parameter_name = "out3"  # Only used in the URL
+
+    def lookups(self, _request, _model_admin):
+        return [
+            ("y", "Redirects elsewhere"),
+            ("n", "Does not redirect"),
+        ]
+
+    def queryset(self, request, queryset):
+        # TODO: Don't consider "outdated" crawl.models.Result. What is "outdated"?
+        if self.value() == "y":
+            return queryset.filter(
+                result__resultsuccess__next_url__isnull=False,
+            ).distinct()
+        if self.value() == "n":
+            return queryset.filter(
+                result__resultsuccess__next_url__isnull=True,
+            ).distinct()
+        # Return None to indicate fallthrough
+
+
 @admin.register(models.Url)
 class UrlAdminForm(ReadOnlyModelAdmin):
     list_display = ["url"]
@@ -140,6 +214,11 @@ class UrlAdminForm(ReadOnlyModelAdmin):
         DisasterUrlInline,
         ResultInline,
         ResultSuccessInline,
+    ]
+    list_filter = [
+        UrlTypeFilter,
+        UrlRedirInFilter,
+        UrlRedirOutFilter,
     ]
 
     def has_add_permission(self, request, obj=None):

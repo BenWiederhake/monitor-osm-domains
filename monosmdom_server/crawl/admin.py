@@ -54,6 +54,51 @@ class ResultErrorInline(admin.TabularInline):
         return format_html("<a href={}>{}</a>", reverse("admin:crawl_resulterror_change", args=(obj.result_id,)), str(obj))
 
 
+class ResultMissingEndFilter(admin.SimpleListFilter):
+    title = "crawl_end"
+    parameter_name = "crend"  # Only used in the URL
+
+    def lookups(self, _request, _model_admin):
+        return [
+            ("n", "Missing"),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == "n":
+            return queryset.filter(
+                crawl_end__isnull=True,
+            )
+        # Return None to indicate fallthrough
+
+
+class ResultTypeFilter(admin.SimpleListFilter):
+    title = "outcome"
+    parameter_name = "ty"  # Only used in the URL
+
+    def lookups(self, _request, _model_admin):
+        return [
+            ("s", "Success"),
+            ("e", "Error"),
+            ("n", "Missing"),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == "s":
+            return queryset.filter(
+                resultsuccess__isnull=False,
+            )
+        if self.value() == "e":
+            return queryset.filter(
+                resulterror__isnull=False,
+            )
+        if self.value() == "n":
+            return queryset.filter(
+                resultsuccess__isnull=True,
+                resulterror__isnull=True,
+            )
+        # Return None to indicate fallthrough
+
+
 @admin.register(models.Result)
 class ResultAdminForm(ReadDeleteOnlyModelAdmin):
     list_display = ["truncated_url", "crawl_begin"]
@@ -62,6 +107,10 @@ class ResultAdminForm(ReadDeleteOnlyModelAdmin):
         ResultSuccessInline,
         ResultErrorInline,
         ResultSuccessRedirectInline,
+    ]
+    list_filter = [
+        ResultMissingEndFilter,
+        ResultTypeFilter,
     ]
     # TODO: Action: Remove completely
     # TODO: Action: Go to Error/Success
