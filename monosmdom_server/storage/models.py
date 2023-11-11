@@ -37,7 +37,7 @@ class Domain(models.Model):
 class Url(models.Model):
     # URLs can be insanely long, but there also seems to be a limit of 255 characters. Use that!
     # We overshoot by a bit, just for extra safety margin in case of UTF-8 counting weirdness.
-    url = models.CharField(max_length=300, unique=True)
+    url = models.CharField(max_length=1024, unique=True)
     # Exactly one of the following must be true for each "Url":
     # - The "Url" has one-or-more "DisasterUrl"s associated with it, and zero "CrawlableUrl"s.
     #   This happens when a URL occurs in the OSM dataset, but "obviously" cannot work.

@@ -17,6 +17,7 @@ MAX_REDIRECT_DEPTH = 10
 # A redirect really *really* should be cheap. If this overwhelmes your server, it absolutely is your
 # own fault. Browsers wait 0 seconds. And yet, we try to be extra super-nice and wait some time.
 SLEEP_REDIRECT_SECONDS = 2.0
+SLEEP_DOMAIN_FORCEBUMP_SECONDS = SLEEP_REDIRECT_SECONDS
 
 
 def crawl_prepared_url(crurl, curl_wrapper):
@@ -44,6 +45,7 @@ def crawl_prepared_url(crurl, curl_wrapper):
                     # This is bad, actually! We don't find "dead" redirect chains that way.
                     # FIXME: Log disaster URLs even in redirect chains
                     # … but in a way that doesn't spam the database with useless duplicates.
+                    use_url = result.location[:1023]
                     maybe_next_crawlable = storage.logic.try_crawlable_url(result.location, create_disaster=False)
                     next_url = maybe_next_crawlable.url_obj
                     # If a redirect to a valid URL that we want to crawl, continue there:
@@ -80,9 +82,11 @@ def crawl_prepared_url(crurl, curl_wrapper):
             #    site, that we now unintentionally "flood" with requests (once very 1+2 seconds).
             #    Bad.
             #    To counter this, we wait a bit longer when bumping is unsuccessful.
+            # TODO: Pass something like "force=True" to update last_contacted unconditionally.
             bumped_domain = lock_then_bump_domain(crurl.domain)
-            print(f"  Got redirected from {previous_domain.domain_name} to {crurl.domain.domain_name}, which is still on cooldown. Sleeping a bit extra …")
-            time.sleep(SLEEP_REDIRECT_SECONDS)
+            if bumped_domain:
+                print(f"  Got redirected from {previous_domain.domain_name} to {crurl.domain.domain_name}, which is still on cooldown. Sleeping a bit extra …")
+                time.sleep(SLEEP_DOMAIN_FORCEBUMP_SECONDS)
         time.sleep(SLEEP_REDIRECT_SECONDS)
     print(f"Redirect chain is too long! {MAX_REDIRECT_DEPTH=}")
 
