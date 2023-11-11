@@ -6,7 +6,6 @@ import base64
 
 # TODO: Search?
 # TODO: Filter?
-# TODO: Order?
 # TODO: Optimize using list_select_related?
 
 
@@ -116,6 +115,7 @@ class ResultAdminForm(ReadDeleteOnlyModelAdmin):
     # TODO: Action: Go to Error/Success
     # TODO: Info: show whether error/success exist
 
+    @admin.display(ordering="url__url")
     def truncated_url(self, obj):
         return obj.url.truncated
 
@@ -124,14 +124,16 @@ class ResultAdminForm(ReadDeleteOnlyModelAdmin):
 class ResultSuccessAdminForm(ReadDeleteOnlyModelAdmin):
     # TODO: Show parent more easily?
     # TODO: Action (conditional): Prune content
-    list_display = ["truncated_url", "status_code", "content_orig_size"]
+    list_display = ["truncated_url", "status_code", "content_orig_size", "crawl_begin"]
     # TODO: headers: Show / offer download
     # TODO: content: Show / offer download
     readonly_fields = ["status_code", "headers_storage_size", "headers_orig_size", "content_file", "content_orig_size", "next_url", "next_request"]
 
+    @admin.display(ordering="url__url")
     def truncated_url(self, obj):
         return obj.result.url.truncated
 
+    @admin.display(ordering="result__crawl_begin")
     def crawl_begin(self, obj):
         return obj.result.crawl_begin
 
@@ -145,9 +147,11 @@ class ResultErrorAdminForm(ReadDeleteOnlyModelAdmin):
     list_display = ["truncated_url", "is_internal_error", "crawl_begin"]
     readonly_fields = ["is_internal_error", "description_json", "description_json_b64", "show_traceback_code"]
 
+    @admin.display(ordering="url__url")
     def truncated_url(self, obj):
         return obj.result.url.truncated
 
+    @admin.display(ordering="result__crawl_begin")
     def crawl_begin(self, obj):
         return obj.result.crawl_begin
 

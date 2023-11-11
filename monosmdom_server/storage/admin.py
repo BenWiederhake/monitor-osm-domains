@@ -6,7 +6,6 @@ import crawl
 
 # TODO: Search?
 # TODO: Filter?
-# TODO: Order?
 # TODO: Optimize using list_select_related?
 
 
@@ -235,6 +234,7 @@ class DisasterUrlAdminForm(ReadOnlyModelAdmin):
     list_display = ["truncated_url", "reason"]
     readonly_fields = ["url", "reason"]
 
+    @admin.display(ordering="url__url")
     def truncated_url(self, obj):
         return obj.url.truncated
 
@@ -244,6 +244,7 @@ class CrawlableUrlAdminForm(ReadOnlyModelAdmin):
     list_display = ["truncated_url", "domain"]
     readonly_fields = ["url", "domain"]
 
+    @admin.display(ordering="url__url")
     def truncated_url(self, obj):
         return obj.url.truncated
 
@@ -254,12 +255,15 @@ class OccurrenceInOsmAdminForm(ReadOnlyModelAdmin):
     readonly_fields = ["url", "osm_item_type", "osm_item_id", "osm_tag_key", "osm_tag_value", "edit_in_id", "edit_in_josm"]
     # TODO: Link to OSM website
 
+    @admin.display(ordering="url__url")
     def truncated_url(self, obj):
         return obj.url.truncated
 
+    @admin.display(ordering="osm_item_id")
     def osm_entry(self, obj):
         return f"{obj.osm_item_type}{obj.osm_item_id}"
 
+    @admin.display(ordering="osm_tag_key")
     def tag(self, obj):
         tag_value = obj.osm_tag_value
         if len(tag_value) > 20:
