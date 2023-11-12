@@ -95,25 +95,30 @@ class LeafModelBulkCache:
         self.objs_occurrenceinosm = []
 
     def flush(self):
-        models.DisasterUrl.objects.bulk_create(self.objs_disasterurl)
+        models.DisasterUrl.objects.bulk_create(
+            self.objs_disasterurl,
+            update_conflicts=True,
+            update_fields=["reason"],
+            unique_fields=["url"],
+        )
         self.objs_disasterurl = []
         models.CrawlableUrl.objects.bulk_create(self.objs_crawlableurl)
         self.objs_crawlableurl = []
         models.OccurrenceInOsm.objects.bulk_create(self.objs_occurrenceinosm)
         self.objs_occurrenceinosm = []
 
-    def insert_count(self):
-        assert self.valid
-        return len(self.objs_disasterurl) + len(self.objs_crawlableurl) + len(self.objs_occurrenceinosm)
-
     # @classmethod
-    # FIXME: Somehow, "@classmethod" breaks "**kwargs". Why?!
-    def create_durl(cache, **kwargs):
-        durl = models.DisasterUrl(**kwargs)
+    # FIXME: Somehow, "@classmethod" breaks wk-only arguments. Why?!
+    def upsert_durl(cache, *, url, reason):
         if cache is None:
-            durl.save()
+            durl, created = models.DisasterUrl.objects.get_or_create(
+                url=url, defaults=dict(reason=reason)
+            )
+            if not created and durl.reason != reason:
+                # Need to overwrite the "wrong" reason:
+                durl.save()
         else:
-            cache.objs_disasterurl.append(durl)
+            cache.objs_disasterurl.append(models.DisasterUrl(url=url, reason=reason))
 
     # @classmethod
     # FIXME: Somehow, "@classmethod" breaks "**kwargs". Why?!
@@ -191,7 +196,7 @@ def try_crawlable_url(url_string, create_disaster, *, cache=None):
             disaster_reason = "has no public suffix"
     # === Handle syntactical/semantical failure:
     if disaster_reason is not None:
-        LeafModelBulkCache.create_durl(cache, url=url_object, reason=disaster_reason)
+        LeafModelBulkCache.upsert_durl(cache, url=url_object, reason=disaster_reason)
         return MaybeCrawlableResult(url_object, None)
     # === Handle interest failure:
     if not have_interest:

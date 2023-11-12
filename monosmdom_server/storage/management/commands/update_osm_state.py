@@ -128,9 +128,8 @@ def update_osm_state(disasters, simplified_urls):
     # No need to touch CrawlResult, CrawlResultSuccess, CrawlResultError at all.
     # We completely delete and re-write the tables CrawlableUrl, DisasterUrl, OccurrenceInOsm.
     # The tables Domain and Url are extended, and existing data remains untouched.
-    print(f"    Wiping old OSM state (tables CrawlableUrl, DisasterUrl, OccurrenceInOsm) …")
+    print(f"    Wiping old OSM state (tables CrawlableUrl, OccurrenceInOsm) …")
     models.CrawlableUrl.objects.all().delete()
-    models.DisasterUrl.objects.all().delete()
     models.OccurrenceInOsm.objects.all().delete()
     print(f"    Importing disaster URLs …")
     # How to import the data performantly?
@@ -151,7 +150,7 @@ def update_osm_state(disasters, simplified_urls):
         assert set(disaster_context.keys()) == {"occs", "reasons"}
         url_object = logic.upsert_url(url_string)
         for disaster_reason in disaster_context["reasons"]:
-            logic.LeafModelBulkCache.create_durl(cache, url=url_object, reason=disaster_reason)
+            logic.LeafModelBulkCache.upsert_durl(cache, url=url_object, reason=disaster_reason)
         for occ_dict in disaster_context["occs"]:
             register_occurrence(url_object, occ_dict, cache)
     print(f"    Importing and checking simplified URLs …")

@@ -82,7 +82,6 @@ Since there is only one user (me), and very little to do (rarely take in a huge 
 
 ## TODOs
 
-* Don't lose DisasterURL data on import
 * Determine geo information in extract
 * Store geo information in OccurrenceInOsm
 * Show stuff on a map somehow
