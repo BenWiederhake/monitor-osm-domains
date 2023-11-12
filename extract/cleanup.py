@@ -171,6 +171,11 @@ def simplified_url_or_disaster_reason(parse_url):
         return None, f"unusual scheme {parts.scheme}"
     if parts.username is not None or parts.password is not None:
         return None, f"contains login information, not crawling"
+    # Accessing the 'port' property raises an exception in invalid URLs -.-
+    try:
+        port_number = parts.port
+    except ValueError:
+        return None, f"port is not a valid integer"
     if parts.port is not None:
         # Technically, using ports is not disastrous – but still highly questionable.
         # FIXME: Should allow port 443, since a disturbingly high number of servers redirect
