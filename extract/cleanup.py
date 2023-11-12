@@ -176,11 +176,17 @@ def simplified_url_or_disaster_reason(parse_url):
         port_number = parts.port
     except ValueError:
         return None, f"port is not a valid integer"
+    port_string = ""
     if parts.port is not None:
-        # Technically, using ports is not disastrous – but still highly questionable.
-        # FIXME: Should allow port 443, since a disturbingly high number of servers redirect
-        # from "https://example.com/" to "https://example.com:443/"
-        return None, f"refusing to use forced port {parts.port}"
+        # Using ports is highly questionable, and I would love to mark it disastrous.
+        # However, a disturbingly high number of servers redirect e.g.
+        # from "https://example.com/" to "https://example.com:443/". So we have to permit it.
+        if parts.scheme == "http" and parts.port == 80:
+            port_string = ":80"
+        elif parts.scheme == "https" and parts.port == 443:
+            port_string = ":443"
+        else:
+            return None, f"refusing to use forced port {parts.port}"
     hostname = parts.hostname
     if hostname is not None:
         # Despite the documentation, the hostname is NOT always lowercase. Example:
@@ -188,8 +194,11 @@ def simplified_url_or_disaster_reason(parse_url):
         # 'www.geb%C3%A4udereinigung.de'
         hostname = hostname.lower()
     netloc = parts.netloc.lower()
-    if hostname is None or netloc != hostname:
-        return None, f"disagreeing {netloc=} and {hostname=}"
+    if netloc and netloc[-1] == ":":
+        # Permit a single trailing colon, because some servers redirect like that (ugh).
+        netloc = netloc[: -1]
+    if hostname is None or netloc != hostname + port_string:
+        return None, f"disagreeing {netloc=} and {hostname=} {port_string=}"
     if ".." in hostname:
         return None, r"double-dot in hostname"
     if "http" in hostname:

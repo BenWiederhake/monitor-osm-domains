@@ -30,30 +30,44 @@ class UrlClassificationTests(TestCase):
             ("https://foo.com:443.1/qwer", None, "port is not a valid integer"),
             ("https://foo.com:443e0/qwer", None, "port is not a valid integer"),
             ("https://foo.com/", "https://foo.com/", None),
+            ("http://foo.com:80/", "http://foo.com/", None),
+            ("https://foo.com:80/", None, "refusing to use forced port 80"),
+            ("http://foo.com:443/", None, "refusing to use forced port 443"),
+            ("https://foo.com:443/", "https://foo.com/", None),
             ("https://foo.com/example?q=1#quux", "https://foo.com/example?q=1", None),
             ("https://foo.com?q=1#quux", "https://foo.com/?q=1", None),
             ("https://weird....dots", None, "double-dot in hostname"),
-            ("https:///slashes/bro/", None, "disagreeing netloc='' and hostname=None"),
+            ("https:///slashes/bro/", None, "disagreeing netloc='' and hostname=None port_string=''"),
             ("https://12.34.56.78/frobnicate", None, "hostname='12.34.56.78' looks like a bare IP"),
             ("https://lol.invalid/frobnicate.html=3", "https://lol.invalid/frobnicate.html=3", None),
         ])
 
     def testRealLifeDistinct(self):
         self.assertReasonBulk([
-            ("https://", None, "disagreeing netloc='' and hostname=None"),
-            ("https:///", None, "disagreeing netloc='' and hostname=None"),
-            ("https://://www.golfclub-rheinblick.ck", None, "disagreeing netloc=':' and hostname=None"),
-            ("https://https://baeckerei-kuenkel.de/", None, "disagreeing netloc='https:' and hostname='https'"),
-            ("https://whttps://www.autohaus-wehner.de/Standorte/Buchholzww.hyundai.de/", None, "disagreeing netloc='whttps:' and hostname='whttps'"),
-            ("https://www.fliesen-ermert.de:", None, "disagreeing netloc='www.fliesen-ermert.de:' and hostname='www.fliesen-ermert.de'"),
-            ("http://www.https://www.columbus-evk.de/", None, "disagreeing netloc='www.https:' and hostname='www.https'"),
-            ("https://wwwhttps://stadtteilpraxis.de/#block-2", None, "disagreeing netloc='wwwhttps:' and hostname='wwwhttps'"),
-            ("https://www.hyundai.https://www.autohaus-wehner.de/Standorte/Buchholzde/", None, "disagreeing netloc='www.hyundai.https:' and hostname='www.hyundai.https'"),
-            ("https://www.mc-oberspree.de:", None, "disagreeing netloc='www.mc-oberspree.de:' and hostname='www.mc-oberspree.de'"),
+            ("https://", None, "disagreeing netloc='' and hostname=None port_string=''"),
+            ("https:///", None, "disagreeing netloc='' and hostname=None port_string=''"),
+            ("https://://www.golfclub-rheinblick.ck", None, "disagreeing netloc='' and hostname=None port_string=''"),
+            ("https://https://baeckerei-kuenkel.de/", None, "suspicious 'http' in hostname"),
+            ("https://whttps://www.autohaus-wehner.de/Standorte/Buchholzww.hyundai.de/", None, "suspicious 'http' in hostname"),
+            ("https://www.fliesen-ermert.de:", "https://www.fliesen-ermert.de/", None),
+            ("http://www.https://www.columbus-evk.de/", None, "suspicious 'http' in hostname"),
+            ("https://wwwhttps://stadtteilpraxis.de/#block-2", None, "suspicious 'http' in hostname"),
+            ("https://www.hyundai.https://www.autohaus-wehner.de/Standorte/Buchholzde/", None, "suspicious 'http' in hostname"),
+            ("https://www.mc-oberspree.de:", "https://www.mc-oberspree.de/", None),
             ("http://www.johanniter...rvwuerttemberg-mitte/", None, "double-dot in hostname"),
             ("http://176.28.22.140", None, "hostname='176.28.22.140' looks like a bare IP"),
             ("https.www.metzgerei-woelfel.de", None, "unusual scheme "),
             ("https.com://www.drk.de/", None, "unusual scheme https.com"),
+        ])
+
+    def testRealLifePorts(self):
+        self.assertReasonBulk([
+            ("http://uni-goettingen.de:80/domain-redirect?domain=altgart.uni-goettingen.de&uri=/", "http://uni-goettingen.de/domain-redirect?domain=altgart.uni-goettingen.de&uri=/", None),
+            ("http://www.lebherz-und-partner.de:80/de/1.html", "http://www.lebherz-und-partner.de/de/1.html", None),
+            ("https://www.mettler-trier.de:443/", "https://www.mettler-trier.de/", None),
+            ("https://www.idnt.net:443/de-DE", "https://www.idnt.net/de-DE", None),
+            ("https://www.allianz-anders.de:443/", "https://www.allianz-anders.de/", None),
+            ("http://siko23.ddns3-instar.de:8081/", None, "refusing to use forced port 8081"),
         ])
 
 
