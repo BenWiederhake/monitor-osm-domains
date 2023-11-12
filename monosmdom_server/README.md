@@ -82,10 +82,13 @@ Since there is only one user (me), and very little to do (rarely take in a huge 
 
 ## TODOs
 
-* Everything
-  * Determine the questions that are asked, and what the data model needs to look like
-  * Import the data
-  * Start automating the first queries
+* Don't lose DisasterURL data on import
+* Determine geo information in extract
+* Store geo information in OccurrenceInOsm
+* Show stuff on a map somehow
+* Cache final Url redirect target – but also forget after X months.
+* Detect some well-known domain parking companies
+* Write heuristics to find and flag more domain parking companies
 
 ## NOTDOs
 
