@@ -59,7 +59,7 @@ class Url(models.Model):
 
 
 class DisasterUrl(models.Model):
-    url = models.ForeignKey(Url, on_delete=models.RESTRICT)
+    url = models.OneToOneField(Url, on_delete=models.RESTRICT, primary_key=True)
     reason = models.CharField()
 
     def __str__(self):
