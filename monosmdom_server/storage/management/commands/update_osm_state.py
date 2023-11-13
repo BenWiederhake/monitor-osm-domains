@@ -59,7 +59,7 @@ def read_urlfile(urlfile):
     # … more simplified_urls, then EOF.
     with open(urlfile, "r") as fp:
         data = json.load(fp)
-    assert data["v"] == 1
+    assert data["v"] == 2
     assert data["type"] == "monitor-osm-domains extraction results, filtered"
     assert set(data.keys()) == set("v type disasters simplified_urls".split())
     return data['disasters'], data['simplified_urls']
@@ -111,13 +111,15 @@ def register_occurrence(url_object, occ_dict, cache):
     # occ_dict.k = "website";
     # occ_dict.orig_url = "http:// bsr.de";
     # occ_dict.t = "n";
-    assert set(occ_dict.keys()) == {"id", "k", "orig_url", "t"}, occ_dict
+    assert set(occ_dict.keys()) == {"id", "k", "orig_url", "t", "x", "y"}, occ_dict
     cache.cache_occ(
         url=url_object,
         osm_item_type=occ_dict["t"],
         osm_item_id=occ_dict["id"],
         osm_tag_key=occ_dict["k"],
         osm_tag_value=occ_dict["orig_url"],
+        osm_long=occ_dict["x"],
+        osm_lat=occ_dict["y"],
     )
     # Note that this creates duplicates if the imported data contains e.g. "website=https://foo.com;https://foo.com".
     # This is not very informative, but it seems even more wasteful to keep an index and try to avoid duplicates.
