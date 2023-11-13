@@ -81,8 +81,12 @@ class OccurrenceInOsm(models.Model):
     osm_item_id = models.BigIntegerField()
     osm_tag_key = models.CharField(max_length=100)
     osm_tag_value = models.CharField(max_length=300)
-    # Note that duplicates are meaningful (e.g. "website=https://foo.com;https://foo.com"), although not very informative.
-    # These will be completely wiped and re-written on every import anyway.
+    # The resolution of a single-precision float works out to about 17cm – that's good enough for
+    # this project, so I'm not worried about data loss.
+    osm_long = models.FloatField(default=50)
+    osm_lat = models.FloatField(default=10)
+    # Note that duplicates are meaningful (e.g. "website=https://foo.com;https://foo.com"), although
+    # not very informative. They are rare and will be wiped and re-written on every import anyway.
 
     def __str__(self):
         return f"<OccurrenceInOsm#{self.id} {self.osm_item_type}{self.osm_item_id}>"
