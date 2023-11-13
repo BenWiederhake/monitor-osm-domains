@@ -80,8 +80,8 @@ class CrawlableUrlDomainInline(admin.TabularInline):
 
 class OsmOccurrenceInline(admin.TabularInline):
     model = models.OccurrenceInOsm
-    readonly_fields = ["editor_id_url", "editor_josm_url", "inspect"]
-    fields = ["editor_id_url", "editor_josm_url", "inspect"]
+    readonly_fields = ["editor_id_url", "editor_josm_url", "inspect", "osm_long", "osm_lat"]
+    fields = ["editor_id_url", "editor_josm_url", "inspect", "osm_long", "osm_lat"]
 
     def inspect(self, obj):
         return format_html("<a href={}>{}</a>", reverse("admin:storage_occurrenceinosm_change", args=(obj.id,)), str(obj))
