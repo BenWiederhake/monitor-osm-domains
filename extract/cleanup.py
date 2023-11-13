@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 import json
 import random
 import re
+import subprocess
 import sys
 import urllib.parse
 
@@ -32,6 +33,8 @@ DISASTROUS_CHARACTERS_BYTES = [
     b'\xe2\x80\x90',
 ]
 RE_BARE_IP = re.compile(r"^[0-9.:]+$")
+# Note that lookup results can easily be thousands of times larger.
+# However, things should get considerably faster by batching queries together.
 
 DISASTROUS_CHARACTERS = [ch.decode() for ch in DISASTROUS_CHARACTERS_BYTES]
 
@@ -239,6 +242,92 @@ def simplify_semantically(by_regexed_url, disasters):
     return by_simplified_url, all_seen_chars
 
 
+def find_coordinate(key, candidates_dict):
+    # DFS to find anything with a coordinate.
+    for candidate in candidates_dict.get(key, []):
+        if len(candidate[0]) > 1:
+            # Must be a coordinate, we're done.
+            return candidate
+        result = find_coordinate(candidate, candidates_dict)
+        if result is not None:
+            return result
+    # If this was an indirect call, failing to find a coordinate is okay.
+    return None
+
+
+def resolve_candidates_single_query(query_items, pbf_filename):
+    print(f"  resolving {len(query_items)} geolocations …")
+    query_string = "".join(f"{item}\n" for item in query_items)
+    proc = subprocess.Popen(
+        ["osmium", "getid", pbf_filename, "-r", "-fopl", "-i-"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    # This is an incredibly stupid approach, since:
+    # - osmium getid does a linear scan, so ideally we query for all IDs in one go, and retreive
+    #   *all* related IDs.
+    # - Doing so means that at the end of proc.communicate, we hold the large input and gigantic
+    #   output simultaneously in memory.
+    # - The pbf fileformat theoretically allows for reasonably easy random access lookups.
+    # So in theory, this could be sped up by a large factor.
+    outs, _ = proc.communicate(input=query_string)
+    del query_string
+    # stderr is not captured, and cannot be tested.
+    assert proc.returncode in [0, 1], proc.returncode
+    candidates_dict = dict()
+    lines = outs.split("\n")
+    del outs
+    assert lines[-1] == ""
+    lines.pop()
+    for line in lines:
+        # Spaces are percent-encoded, so we can safely split by spaces:
+        parts = line.split(" ")
+        key = parts[0]
+        assert key not in candidates_dict
+        values_by_letter = {part[0]: part[1:] for part in parts[1:]}
+        if key[0] == "r":
+            members = values_by_letter["M"].split(",")
+            values = [member.split("@")[0] for member in members]
+        elif key[0] == "w":
+            values = values_by_letter["N"].split(",")
+        elif key[0] == "n":
+            # Intentionally don't interpret as floating point values, to prevent precision loss/creep.
+            values = [(values_by_letter["x"], values_by_letter["y"])]
+        else:
+            raise AssertionError(f"unknown resulting item type, perhaps line is not valid OPL?! >> {line}")
+        candidates_dict[key] = values
+    missing_keys = set(query_items) - set(candidates_dict.keys())
+    assert not missing_keys, missing_keys
+    results = dict()
+    for item in query_items:
+        coord = find_coordinate(item, candidates_dict)
+        # If 'item' cannot be resolved at all, the datasource (pbf file) is incomplete.
+        assert coord is not None, item
+        results[item] = coord
+    return results
+
+
+def resolve_item_locations(items, pbf_filename):
+    item_map = resolve_candidates_single_query(items, pbf_filename)
+    assert len(item_map) == len(items), (len(item_map), len(items))
+    return item_map
+
+
+def inject_locations(findings, pbf_filename):
+    interesting_osm_items = set()
+    for finding in findings:
+        for occ in finding["occ"]:
+            interesting_osm_items.add(f'{occ["t"]}{occ["id"]}')
+    resolved_items = resolve_item_locations(interesting_osm_items, pbf_filename)
+    print("  injecting …")
+    for finding in findings:
+        for occ in finding["occ"]:
+            loc = resolved_items[f'{occ["t"]}{occ["id"]}']
+            occ["x"] = loc[0]
+            occ["y"] = loc[1]
+
+
 def report_stats(old_findings, by_simplified_url, disasters):
     print(f"{len(old_findings)} unique tag-values resulted in {len(by_simplified_url)} unique simplified URLs.")
     random_disasters = list(disasters.items())
@@ -249,7 +338,7 @@ def report_stats(old_findings, by_simplified_url, disasters):
         print(f" - {disaster[0]} ({disaster[1].reasons})")
 
 
-def cleanup(data):
+def cleanup(data, pbf_filename):
     assert data["v"] == 1
     assert data["type"] == "monitor-osm-domains extraction results"
     data["type"] = "monitor-osm-domains extraction results, filtered"
@@ -257,6 +346,9 @@ def cleanup(data):
     del data["findings"]
     disasters = defaultdict(DisasterUrl)  # Original or simplified URL to list of occurrence-objects and set of reasons
     data["disasters"] = disasters
+
+    print("Resolving and injecting geo locations …")
+    inject_locations(old_findings, pbf_filename)
 
     # Break down all tag values into singular URLs, potentially already rejecting
     # some terrible values, or grouping entries with the same regexed URL.
@@ -281,10 +373,10 @@ def cleanup(data):
             print(f"    {count} times >>{char}<< → {str(char.encode())}")
 
 
-def run(input_filename, output_filename):
+def run(input_filename, pbf_filename, output_filename):
     with open(input_filename, "r") as fp:
         data = json.load(fp)
-    cleanup(data)
+    cleanup(data, pbf_filename)
     print(f"Writing to {output_filename} …")
     with open(output_filename, "w") as fp:
         json.dump(data, fp, cls=DisasterEncoder)
@@ -292,8 +384,10 @@ def run(input_filename, output_filename):
 
 
 if __name__ == "__main__":
+    print("Warning: This program will easily consumes about 13 GB of RAM.")
     selftest()
-    if len(sys.argv) != 3:
-        print(f"USAGE: {sys.argv[0]} /path/to/input/raw.monosmdom.json /path/to/output/all.monosmdom.json", file=sys.stderr)
+    if len(sys.argv) != 4:
+        print(f"USAGE: {sys.argv[0]} /path/to/input/raw.monosmdom.json /path/to/input/datasource.pbf /path/to/output/all.monosmdom.json", file=sys.stderr)
+        print("Note that the datasource must contain all relations/ways/nodes and their referenced items, but does not necessarily need to be identical to what generated the raw monosmdom json.", file=sys.stderr)
         exit(1)
-    run(sys.argv[1], sys.argv[2])
+    run(sys.argv[1], sys.argv[2], sys.argv[3])
