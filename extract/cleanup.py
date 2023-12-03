@@ -250,7 +250,7 @@ def report_stats(old_findings, by_simplified_url, disasters):
 
 
 def cleanup(data):
-    assert data["v"] == 1
+    assert data["v"] == 2
     assert data["type"] == "monitor-osm-domains extraction results"
     data["type"] = "monitor-osm-domains extraction results, filtered"
     old_findings = data["findings"]
