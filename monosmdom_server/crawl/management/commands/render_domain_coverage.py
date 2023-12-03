@@ -130,7 +130,8 @@ class Command(BaseCommand):
 
     def handle(self, *, to_csv_file, to_png_file, show_gnuplot, now, **options):
         # Argument checking that should probably be done in ArgumentParser:
-        assert (to_csv_file is not None) + (to_png_file is not None) + (show_gnuplot is not None) > 0, "At least one option must be given?!"
+        print(f"{to_csv_file=} {to_png_file=} {show_gnuplot=}")
+        assert (to_csv_file is not None) + (to_png_file is not None) + show_gnuplot > 0, "At least one option must be given?!"
         if to_csv_file is not None:
             assert not os.path.exists(to_csv_file), f"File {to_csv_file} already exists, refusing to overwrite!"
         print("Fetching domain data …")
