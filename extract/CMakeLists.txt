@@ -3,9 +3,6 @@ cmake_minimum_required(VERSION 3.5)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 project(extract)
 
-# This project uses the experimental header <osmium/io/pbf_input_randomaccess.hpp>
-# See also https://github.com/osmcode/libosmium/pull/367
-set(OSMIUM_INCLUDE_DIR ../../libosmium/include)
 find_package(Osmium REQUIRED COMPONENTS pbf)
 include_directories(SYSTEM ${OSMIUM_INCLUDE_DIRS})
 

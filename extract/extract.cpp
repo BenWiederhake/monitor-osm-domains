@@ -1,15 +1,15 @@
-// #include <algorithm> // sort
 #include <cassert>
 #include <cstdio>
 #include <cstring> // strcmp
-// #include <functional> // greater
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
+#include "osmium_buffer.hpp" // Inject header
+#include "osmium_pbf_input_randomaccess.hpp"
+
 #include <osmium/io/pbf_input.hpp>
-#include <osmium/io/pbf_input_randomaccess.hpp>
 #include <osmium/io/reader_with_progress_bar.hpp>
 #include <osmium/handler.hpp>
 #include <osmium/visitor.hpp>
