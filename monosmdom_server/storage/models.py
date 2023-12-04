@@ -63,7 +63,7 @@ class DisasterUrl(models.Model):
     reason = models.CharField()
 
     def __str__(self):
-        return f"<DisasterUrl#{self.id} {self.url.truncated}>"
+        return f"<DisasterUrl#{self.url_id} {self.url.truncated}>"
 
 
 class CrawlableUrl(models.Model):
