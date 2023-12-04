@@ -142,10 +142,10 @@ class LeafModelBulkCache:
         self.objs_occurrenceinosm.append(occ)
 
 
-MaybeCrawlableResult = collections.namedtuple("MaybeCrawlableResult", ["url_obj", "crawlable_url_obj_or_none"])
+MaybeCrawlableResult = collections.namedtuple("MaybeCrawlableResult", ["url_obj", "domain", "want_to_crawl"])
 
 
-def try_crawlable_url(url_string, *, cache=None):
+def discover_url(url_string, *, mark_crawlable=False, cache=None):
     """
     Given a dirty URL string, this function runs a few sanity checks:
     - Syntactical checks test for illegal schemes, ports, auth info, etc. (see ../../extract/cleanup.py).
@@ -153,20 +153,23 @@ def try_crawlable_url(url_string, *, cache=None):
     - Interest check: Does the hostname occur in 'IGNORED_HOSTNAMES'?
     Depending on these checks, it does one of the following:
     (1) If a syntactical or semantical check fails, a corresponding Url and DisasterUrl
-        is created, and the Url instance is returned.
-    (2) If the interest check fails, only a corresponding Url is created, and the Url instance is returned.
-    (3) If all checks pass, a corresponding Url, CrawlableUrl, and Domain is created, and the Url
-        and CrawlableUrl instances are returned.
+        is created, and the Url instance is returned, with want_to_crawl=False.
+    (2) If the interest check fails, only a corresponding Url is created, and the Url instance is
+        returned, with want_to_crawl=False.
+    (3) If all checks pass, then a corresponding Url and Domain is created and returned,
+        with want_to_crawl=True. If mark_crawlable is True, then a CrawlableUrl is also created and
+        linked with the freshly-created Url and Domain.
 
     If that was too much, maybe this truth table helps:
 
-            -----Passes?-----   →   ---------Creates?--------
-             Syn | Sem | Int    |    Url | DisU | CraU | Dom
-            --------------------+----------------------------
-        (1)   N     -     -     |     Y      Y      n     n
-        (1)   Y     N     -     |     Y      Y      n     n
-        (2)   Y     Y     N     |     Y      n      n     n
-        (3)   Y     Y     Y     |     Y      n      Y     Y
+            -----Passes?----- -arg-   →   ---------Creates?--------    ---Returns?--
+             Syn | Sem | Int | mark   |    Url | DisU | CraU | Dom     want_to_crawl
+            --------------------------+-----------------------------------------------
+        (1)   N     -     -      -    |     Y      Y      n     n          False
+        (1)   Y     N     -      -    |     Y      Y      n     n          False
+        (2)   Y     Y     N      -    |     Y      n      n     n          False
+        (3)   Y     Y     Y      N    |     Y      n      n     Y          True
+        (3)   Y     Y     Y      Y    |     Y      n      Y     Y          True
 
     Guarantees:
     - The return values are always of type MaybeCrawlableResult.
@@ -195,11 +198,14 @@ def try_crawlable_url(url_string, *, cache=None):
     # === Handle syntactical/semantical failure:
     if disaster_reason is not None:
         LeafModelBulkCache.upsert_durl(cache, url=url_object, reason=disaster_reason)
-        return MaybeCrawlableResult(url_object, None)
+        return MaybeCrawlableResult(url_object, None, False)
     # === Handle interest failure:
     if not have_interest:
-        return MaybeCrawlableResult(url_object, None)
+        return MaybeCrawlableResult(url_object, None, False)
     # === Handle crawlable URL, the only happy path:
     domain_object, _created = models.Domain.objects.get_or_create(domain_name=second_level_domain)
-    crawlable_object = LeafModelBulkCache.upsert_crurl_via(cache, url=url_object, domain=domain_object)
-    return MaybeCrawlableResult(url_object, crawlable_object)
+    if mark_crawlable:
+        crawlable_object = LeafModelBulkCache.upsert_crurl_via(cache, url=url_object, domain=domain_object)
+    else:
+        crawlable_object = None
+    return MaybeCrawlableResult(url_object, domain_object, True)

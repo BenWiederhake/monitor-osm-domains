@@ -167,7 +167,7 @@ def update_osm_state(disasters, simplified_urls):
         # However, this means very little additional work, and deduplicating the code seems more important on this occasion.
         # TODO: The semantical checks still are a lot of work. Can this be precomputed and bulk-inserted instead?
         t1 = common.now_tzaware()
-        maybe_crawlable = logic.try_crawlable_url(url_string, cache=cache)
+        maybe_crawlable = logic.discover_url(url_string, mark_crawlable=True, cache=cache)
         t2 = common.now_tzaware()
         for occ_dict in occs:
             register_occurrence(maybe_crawlable.url_obj, occ_dict, cache)

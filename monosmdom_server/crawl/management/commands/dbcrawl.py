@@ -20,33 +20,39 @@ SLEEP_REDIRECT_SECONDS = 2.0
 SLEEP_DOMAIN_FORCEBUMP_SECONDS = SLEEP_REDIRECT_SECONDS
 
 
-def crawl_prepared_url(crurl, curl_wrapper):
-    if crurl is None:
+def crawl_prepared_url(crawl_url_obj, curl_wrapper):
+    assert isinstance(crawl_url_obj, storage.models.Url), crawl_url_obj
+    if crawl_url_obj is None:
         # Nothing matched; presumably because either the DB is empty, or somehow we crawled
         # everything so fast that we ran out of things to do. Slow down:
         print(f"Nothing to do! Sleeping for {SLEEP_IF_NO_MATCH_SECONDS} seconds …")
         time.sleep(SLEEP_IF_NO_MATCH_SECONDS)
         return
     last_request = None
+    previous_domain = crawl_url_obj.crawlableurl.domain
     for iteration in range(MAX_REDIRECT_DEPTH):
-        assert crurl is not None
-        print(f"Crawling {crurl} now …")
-        with logic.CrawlProcess(crurl) as process:
+        assert crawl_url_obj is not None
+        assert isinstance(crawl_url_obj, storage.models.Url), crawl_url_obj
+        print(f"Crawling {crawl_url_obj} now …")
+        with logic.CrawlProcess(crawl_url_obj) as process:
             if last_request is not None:
                 last_request.next_request = process.result
                 last_request.save()
-            result, errdict = curl_wrapper.crawl_response_or_errdict(crurl.url.url)
-            previous_domain = crurl.domain
-            crurl = None  # Done crawling, probably.
+            result, errdict = curl_wrapper.crawl_response_or_errdict(crawl_url_obj.url)
+            crawl_url_obj = None  # Done crawling, probably.
             if result is not None:
-                next_url = None
+                next_url_obj = None
                 if result.location is not None:
                     # If the redirect goes to a disastrous URL, this creates a DisasterUrl entry.
                     use_url = result.location[:1023]
-                    maybe_next_crawlable = storage.logic.try_crawlable_url(result.location)
-                    next_url = maybe_next_crawlable.url_obj
+                    # We don't want to mark any redirect-target as a CrawlableUrl,
+                    # since we only indirectly care about that URL.
+                    maybe_next_crawlable = storage.logic.discover_url(result.location, mark_crawlable=False)
+                    next_url_obj = maybe_next_crawlable.url_obj  # FIXME
                     # If a redirect to a valid URL that we want to crawl, continue there:
-                    crurl = maybe_next_crawlable.crawlable_url_obj_or_none
+                    if maybe_next_crawlable.want_to_crawl:
+                        crawl_url_obj = next_url_obj
+                        next_domain = maybe_next_crawlable.domain
                 result_success = process.submit_success(
                     result.status_code,
                     result.header.ba,
@@ -55,42 +61,39 @@ def crawl_prepared_url(crurl, curl_wrapper):
                     result.body.ba,
                     result.body.size,
                     result.body.truncated,
-                    next_url,
+                    next_url_obj,
                 )
                 print(f"    saved as {result_success.content_file}")
                 last_request = result_success
             if errdict is not None:
                 print(f"    curl reports error: {errdict['errstr']}")
                 process.submit_error(errdict)
-        if crurl is None:
+        if crawl_url_obj is None:
             # Done crawling the original crawlable URL, we have reached the end of the (possibly
             # empty) redirect chain.
             return
-        if iteration + 1 != MAX_REDIRECT_DEPTH and crurl.domain != previous_domain:
-            # If we were redirected to an entirely new domain, this created a new Domain row.
+        if iteration + 1 != MAX_REDIRECT_DEPTH and next_domain != previous_domain:
+            # We got redirected to an entirely new domain.
             # Currently, this causes some issues:
-            # 1. There is a potential race with concurrent dbcrawlers which might fetch the
-            #    newly-created CrawlableUrl and crawl it. Bad.
-            #    To counter this, make sure that the time window for this race is as small as
-            #    possible: Bump the domain before sleeping.
-            # 2. We might unintentionally send two or three requests per month instead of just one
-            #    per domain. Oh well.
-            # 3. An attacker might take over lots of domains and redirect them all to some victim
+            # 1. We might unintentionally send two or three requests per month instead of just one
+            #    per domain. Oh well, don't care.
+            # 2. An attacker might take over lots of domains and redirect them all to some victim
             #    site, that we now unintentionally "flood" with requests (once very 1+2 seconds).
             #    Bad.
             #    To counter this, we wait a bit longer when bumping is unsuccessful.
-            # TODO: Pass something like "force=True" to update last_contacted unconditionally.
-            bumped_domain = lock_then_bump_domain(crurl.domain)
-            if bumped_domain:
-                print(f"  Got redirected from {previous_domain.domain_name} to {crurl.domain.domain_name}, which is still on cooldown. Sleeping a bit extra …")
+            bumped_domain = lock_then_bump_domain(next_domain)
+            if bumped_domain is not None:
+                print(f"  Got redirected from {previous_domain.domain_name} to {next_domain.domain_name}, which is still on cooldown. Sleeping a bit extra …")
                 time.sleep(SLEEP_DOMAIN_FORCEBUMP_SECONDS)
+                logic.bump_domain(next_domain)
+            previous_domain = next_domain
         time.sleep(SLEEP_REDIRECT_SECONDS)
     print(f"Redirect chain is too long! {MAX_REDIRECT_DEPTH=}")
 
 
 def crawl_random_url(curl_wrapper):
     crurl = logic.pick_and_bump_random_crawlable_url()
-    crawl_prepared_url(crurl, curl_wrapper)
+    crawl_prepared_url(crurl.url, curl_wrapper)
 
 
 def lock_then_bump_domain(domain):
@@ -108,14 +111,14 @@ def crawl_domain(domain_row, curl_wrapper):
         chosen_crurl = None
     else:
         chosen_crurl = logic.pick_random_crawlable_url_from_bumped_domain(bumped_domain)
-    crawl_prepared_url(chosen_crurl, curl_wrapper)
+    crawl_prepared_url(chosen_crurl.url, curl_wrapper)
 
 
 def crawl_cli_url(crurl_row, curl_wrapper):
     if lock_then_bump_domain(crurl_row.domain) is None:
         print(f"Too soon! Domain is still on cooldown. last_contacted={crurl_row.domain.last_contacted} CRAWL_DOMAIN_DELAY_DAYS={logic.CRAWL_DOMAIN_DELAY_DAYS}")
         return
-    crawl_prepared_url(crurl_row, curl_wrapper)
+    crawl_prepared_url(crurl_row.url, curl_wrapper)
 
 
 class Command(BaseCommand):

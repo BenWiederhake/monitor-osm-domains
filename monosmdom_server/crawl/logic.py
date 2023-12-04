@@ -86,7 +86,7 @@ def pick_random_crawlable_url_from_bumped_domain(bumped_domain):
 def pick_and_bump_random_crawlable_url():
     # This is called only from the crawler.
     # We want to make sure that no two crawler processes ever poll the same domain at the same time.
-    # (Failure means that we make two requests to the same domain, potentially to the same URL)
+    # (Failure means that we make two requests to the same domain, probably to the same URL)
     # This must be the "top" atomic layer, because we want to make sure that "last_contacted" is persisted.
     with transaction.atomic(durable=True):
         try:
@@ -185,8 +185,8 @@ def compress_content_lossy(content_raw, given_size, is_truncated, max_length):
 
 
 class CrawlProcess:
-    def __init__(self, crawlable_url):
-        self.crawlable_url = crawlable_url
+    def __init__(self, url_obj):
+        self.url_obj = url_obj
         self.has_submitted = False
         self.result = None
 
@@ -196,7 +196,7 @@ class CrawlProcess:
         # We want to make absolutely certain that the connection intent is registered, for possible
         # recovery or crash investigation. To do that, we need to be the outermost atomic:
         with transaction.atomic(durable=True):
-            self.result = crawl.models.Result.objects.create(url=self.crawlable_url.url, crawl_begin=common.now_tzaware())
+            self.result = crawl.models.Result.objects.create(url=self.url_obj, crawl_begin=common.now_tzaware())
         # Now that it has been created, proceed with the network part of crawling.
         return self
 
