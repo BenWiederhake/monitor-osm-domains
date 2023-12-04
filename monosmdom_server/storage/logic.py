@@ -145,16 +145,15 @@ class LeafModelBulkCache:
 MaybeCrawlableResult = collections.namedtuple("MaybeCrawlableResult", ["url_obj", "crawlable_url_obj_or_none"])
 
 
-def try_crawlable_url(url_string, create_disaster, *, cache=None):
+def try_crawlable_url(url_string, *, cache=None):
     """
     Given a dirty URL string, this function runs a few sanity checks:
     - Syntactical checks test for illegal schemes, ports, auth info, etc. (see ../../extract/cleanup.py).
     - Semantical checks try to determine a registrable second-level-domain (according to PSL data).
     - Interest check: Does the hostname occur in 'IGNORED_HOSTNAMES'?
     Depending on these checks, it does one of the following:
-    (1) If a syntactical or semantical check fails, a corresponding Url and perhaps one DisasterUrl
-        is created, and the Url instance is returned. (Whether a DisasterUrl is created depends on
-        the create_disaster argument.)
+    (1) If a syntactical or semantical check fails, a corresponding Url and DisasterUrl
+        is created, and the Url instance is returned.
     (2) If the interest check fails, only a corresponding Url is created, and the Url instance is returned.
     (3) If all checks pass, a corresponding Url, CrawlableUrl, and Domain is created, and the Url
         and CrawlableUrl instances are returned.
@@ -179,7 +178,6 @@ def try_crawlable_url(url_string, create_disaster, *, cache=None):
     """
     # Note that we don't apply regex-fixups to redirects, since these should absolutely be valid URLs already.
     # === Syntactical check:
-    # FIXME: Use create_disaster? See also related FIXME in dbcrawl.
     simplified_url, disaster_reason = extract_cleanup.simplified_url_or_disaster_reason(url_string)
     assert (simplified_url is None) != (disaster_reason is None)
     if cache is not None:
