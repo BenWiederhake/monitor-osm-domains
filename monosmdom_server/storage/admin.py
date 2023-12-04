@@ -88,11 +88,11 @@ class OsmOccurrenceInline(admin.TabularInline):
 
     def editor_id_url(self, obj):
         osm_url = occ_to_editor_id_url(obj)
-        return format_html("<a href={0}>{0}</a>", osm_url)
+        return format_html("<a href={0} target=\"_blank\">{0}</a>", osm_url)
 
     def editor_josm_url(self, obj):
         osm_url = occ_to_editor_josm_url(obj)
-        return format_html("<a href={0}>{0}</a>", osm_url)
+        return format_html("<a href={0} target=\"_blank\">{0}</a>", osm_url)
 
 
 class DisasterUrlInline(admin.TabularInline):
@@ -272,11 +272,11 @@ class OccurrenceInOsmAdminForm(ReadOnlyModelAdmin):
 
     def edit_in_id(self, obj):
         osm_url = occ_to_editor_id_url(obj)
-        return format_html("<a href={0}>{0}</a>", osm_url)
+        return format_html("<a href={0} target=\"_blank\">{0}</a>", osm_url)
 
     def edit_in_josm(self, obj):
         osm_url = occ_to_editor_josm_url(obj)
-        return format_html("<a href={0}>{0}</a>", osm_url)
+        return format_html("<a href={0} target=\"_blank\">{0}</a>", osm_url)
 
 
 @admin.register(models.Import)
