@@ -45,9 +45,6 @@ class DisasterUrl:
         self.reasons.add(reason)
         self.occs.extend(occs)
 
-    def __dict__(self):
-        return dict(d="qwe")
-
 
 class DisasterEncoder(json.JSONEncoder):
     def default(self, obj):
