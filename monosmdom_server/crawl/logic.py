@@ -14,7 +14,7 @@ import storage
 import traceback
 
 
-CRAWL_DOMAIN_DELAY_DAYS = 60
+CRAWL_DOMAIN_DELAY_DAYS = 25
 
 # Options that are basically passed to curl.
 # Expect compression to be factor 10 at best, and abort connection after factor 100.
