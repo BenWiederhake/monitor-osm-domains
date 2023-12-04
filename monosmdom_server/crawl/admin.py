@@ -138,7 +138,7 @@ class ResultSuccessAdminForm(ReadDeleteOnlyModelAdmin):
         return obj.result.crawl_begin
 
     def headers_storage_size(self, obj):
-        return len(obj.headers_zlib)
+        return len(obj.headers)
 
 
 @admin.register(models.ResultError)
