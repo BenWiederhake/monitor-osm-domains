@@ -40,8 +40,8 @@ plot "{filename}" using 1:2 title "domains historically covered", "" using 1:3 t
 
 def fetch_domain_times():
     with transaction.atomic():
-        domains_uncontacted = storage.models.Domain.objects.filter(last_contacted__isnull=True).count()
-        domain_time_tuples = list(storage.models.Domain.objects.filter(last_contacted__isnull=False).values_list("last_contacted"))
+        domains_uncontacted = storage.models.Domain.objects.filter(last_contacted__isnull=True, crawlableurl__isnull=False).distinct("id").count()
+        domain_time_tuples = list(storage.models.Domain.objects.filter(last_contacted__isnull=False, crawlableurl__isnull=False).distinct("id").values_list("last_contacted"))
     print(f"  Got {len(domain_time_tuples)} results. Unpacking …")
     domain_times = [last_contacted for (last_contacted,) in domain_time_tuples if last_contacted is not None]
     print(f"  got {domains_uncontacted} uncontacted domains and {len(domain_times)} datetimes (e.g. {domain_times[0]}).")
