@@ -2,6 +2,7 @@
 
 from collections import Counter, defaultdict
 import json
+import os
 import random
 import re
 import sys
@@ -279,6 +280,8 @@ def cleanup(data):
 
 
 def run(input_filename, output_filename):
+    if os.path.exists(output_filename):
+        print(f"Refusing to overwrite {output_filename}")
     with open(input_filename, "r") as fp:
         data = json.load(fp)
     cleanup(data)
