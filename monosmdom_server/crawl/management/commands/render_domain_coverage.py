@@ -17,25 +17,17 @@ import tempfile
 OUTPUT_UNIT_NAME = "days"
 OUTPUT_UNIT_SECONDS = 24 * 3600
 
-GNUPLOT_PROGRAM_INTERACTIVE_FORMAT = """
+GNUPLOT_PROGRAM_COMMON_FORMAT = """
 set datafile separator ",";
 set xlabel "Time [{OUTPUT_UNIT_NAME}]";
 set style data linespoints;
+set xtics 1;
+set grid;
 plot "{filename}" using 1:2 title "domains historically covered", "" using 1:3 title "best case prediction";
-pause mouse close
-# no size, since its a window
-# no output filename
 """
 
-GNUPLOT_PROGRAM_TOFILE_FORMAT = """
-set datafile separator ",";
-set terminal png size 1780,920 enhanced;
-set output "{output_filename}";
-set xlabel "Time [{OUTPUT_UNIT_NAME}]";
-set style data linespoints;
-plot "{filename}" using 1:2 title "domains historically covered", "" using 1:3 title "best case prediction";
-# no pause
-"""
+GNUPLOT_PROGRAM_INTERACTIVE_FORMAT = GNUPLOT_PROGRAM_COMMON_FORMAT + "pause mouse close;"
+GNUPLOT_PROGRAM_TOFILE_FORMAT = 'set terminal png size 1780,920 enhanced;set output "{output_filename}";' + GNUPLOT_PROGRAM_COMMON_FORMAT
 
 
 def fetch_domain_times():
