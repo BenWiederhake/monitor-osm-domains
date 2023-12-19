@@ -1,0 +1,27 @@
+{% spaceless %}
+{% load static %}
+<!DOCTYPE html>
+<html class="no-js" lang="de" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>{% block title %}Monitor OSM Domains{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="stylesheet" type="text/css" media="screen" href="{% static 'css/simple_v2.2.1.min.css' %}" integrity="sha384-TdpMb6dvhsEja7kzuLF1AdUAW5mt1iT3YfH+M6gCZ8XSl6mcRKONgjjbS5dMknAZ" />
+  <link rel="stylesheet" type="text/css" media="screen" href="{% static 'css/app.css' %}" />
+  {# See https://simplecss.org/demo and https://test.simplecss.org/ for some really fancy stuff. #}
+  <meta name="robots" content="noindex, nofollow">
+  {# TODO: Generate favicons at some point in time #}
+  {# <link rel="icon" type="image/png" sizes="16x16" href="{% static '/icons/favicon-16x16.png' %}"> #}
+  {# <link rel="icon" type="image/png" sizes="32x32" href="{% static '/icons/favicon-32x32.png' %}"> #}
+  {% block headers %}{% endblock %}
+</head>
+<body>
+  {% block navigation %}{% endblock %}
+  {% block main %}{% endblock %}
+  {% block footer %}{% endblock %}
+  {% block footerscripts %}{% endblock %}
+</body>
+</html>
+{% endspaceless %}

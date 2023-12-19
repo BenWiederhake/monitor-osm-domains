@@ -1,0 +1,40 @@
+{% extends "partials/base.html" %}
+
+{% block headers %}
+  <meta name="description" content="Homepage of the monitor-osm-domains project.">
+{% endblock %}
+
+{% block navigation %}
+  <header>
+    <h1><code>monitor-osm-domains</code></h1>
+    <nav>
+      <a href="{% url 'index' %}" id="homelink">Home</a>
+      <a href="/">FAQ{# TODO: Create and link this page #}</a>
+      <a href="/">Health{# TODO: Create and link this page #}</a>
+      <a href="/">Detections{# TODO: Create and link this page #}</a>
+      <a href="https://github.com/BenWiederhake/monitor-osm-domains/#monitor-osm-domains">Github</a>
+    </nav>
+  </header>
+{% endblock %}
+
+{% block main %}
+    <div class="content-wrapper" id="main">
+      <div class="content">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+{% endblock %}
+
+{% block footer %}
+  <footer>
+    <p>
+      <a href="https://uberspace.de/de/about/privacy/">Data protection{# TODO: Write my own page, explaining that I don't hand out cookies, and don't want to know about visitors anyway. Feel free to contact me though! #}</a>
+      |
+      <a href="https://github.com/BenWiederhake/monitor-osm-domains/issues/new">Contact</a>
+      |
+      <a href="https://github.com/BenWiederhake/monitor-osm-domains/blob/master/LICENSE">License (AGPL)</a>
+      |
+      <a href="https://media.ccc.de/v/froscon2023-2867-writing_a_link_checker_in_rust_in_a_weekend_plus_two_years">Login<!-- Sorry for the troll. --></a>
+    </p>
+  </footer>
+{% endblock %}

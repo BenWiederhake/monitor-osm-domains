@@ -1,0 +1,11 @@
+{% extends "partials/public-facing.html" %}
+
+{% block title %}Monitor OSM Domains – Homepage{% endblock %}
+
+{% block content %}
+  <h2>Crawling all domains in OSM data</h2>
+  <p>This project monitors all web domains stored in OpenStreetMap data in a certain region. The idea is to query these domains every month or so, and collect data over a long period of time. If a server is consistently down for many months, this is the closest anyone can possibly get to a “proof” that a server is dead, and will likely never come back. This proof can then be used to update the OSM database, possibly even in an automated fashion.</p>
+  <p>Before anyone yells at me: Yes, I am aware of the <a href="https://wiki.openstreetmap.org/wiki/Automated_Edits_code_of_conduct">AECoC</a> and pledge to follow it, when developing towards automated edits.</p>
+  <p>The crawler is already actively running, it started around October 2023. I'll wait until the 6-12 months mark before calling any results conclusive. So there's not much to see just yet. Until then, I'll be busy getting the interface and automation to work. <br> Care to <a href="https://github.com/BenWiederhake/monitor-osm-domains/fork">join me</a>? :-)</p>
+  <p>If you're here because the crawler contacted your webserver (perhaps because you found <code>SuperTallSoupFleece</code> in your logs and this is hopefully the only place in the internet that mentions this weird term?) and you have any issue with that, please write me an e-mail to the e-mail address inside the useragent, or <a href="https://github.com/BenWiederhake/monitor-osm-domains/issues/new">open a new issue</a>.</p>
+{% endblock %}

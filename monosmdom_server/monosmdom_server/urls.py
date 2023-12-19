@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 import crawl.models
 import crawl.views
+import webui.views
 
 
 STRIPPED_MEDIA_URL = settings.MEDIA_URL.strip("/")
@@ -26,7 +27,8 @@ STRIPPED_MEDIA_URL = settings.MEDIA_URL.strip("/")
 urlpatterns = [
     # Pattern must match crawler.models.ResultSuccess.content_file.upload_to:
     re_path(f'^{STRIPPED_MEDIA_URL}/(?P<filepath>{crawl.models.USER_DIRECTORY_PATH_REGEX})$', crawl.views.serve_protected_media, name='serve_protected_media'),
-    path(settings.AT_SUBPATH + "/", include([
+    path(settings.AT_SUBPATH + "/" if settings.AT_SUBPATH else "", include([
+        path('', webui.views.index, name='index'),
         path(settings.SECRET_ADMIN_PATH, admin.site.urls),
     ])),
 ]
