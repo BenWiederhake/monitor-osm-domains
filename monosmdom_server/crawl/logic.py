@@ -15,6 +15,7 @@ import traceback
 
 
 CRAWL_DOMAIN_DELAY_DAYS = 25
+CACHE_CABUNDLE_TIMEOUT = datetime.timedelta(hours=8)
 
 # Options that are basically passed to curl.
 # Expect compression to be factor 10 at best, and abort connection after factor 100.
@@ -325,6 +326,7 @@ class LockedCurl:
             print(f"  {MAX_BODY_STOP_COUNT=}")
             print(f"  {settings.CAINFO_ROOT_AND_INTERMEDIATE=}")
             print(f"  {settings.CRAWLER_USERAGENT_EMAIL=}")
+        self.last_cabundle_read = common.now_tzaware()
         # Note that this is only about local caching of settings, especially of the heavy CA bundle.
         self.c.setopt(pycurl.CAINFO, settings.CAINFO_ROOT_AND_INTERMEDIATE.encode())
         # Also disable the system store, fail-fast, to detect config problems quicker:
@@ -356,6 +358,16 @@ class LockedCurl:
         # be too much anyway, since an attacker could only trigger an arbitrary GET request without
         # controlling cookies or auth info).
         # TODO: Look into CURLOPT_LOW_SPEED_TIME and CURLOPT_LOW_SPEED_LIMIT: How well can I use them?
+
+    def check_cabundle(self):
+        now = common.now_tzaware()
+        if now - self.last_cabundle_read > CACHE_CABUNDLE_TIMEOUT:
+            print("Re-reading CA bundle ...")
+            # I sincerely hope this triggers a re-read of the ca bundle file.
+            # Or perhaps it re-reads the file on every single request?
+            # TODO: Figure out *when and if exactly* curl reads the cabundle ("cainfo") file.
+            self.c.setopt(pycurl.CAINFO, settings.CAINFO_ROOT_AND_INTERMEDIATE.encode())
+            self.last_cabundle_read = now
 
     def __del__(self):
         self.c.close()
