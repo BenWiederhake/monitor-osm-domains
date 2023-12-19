@@ -55,7 +55,6 @@ class CrawlableUrlSelfInline(admin.TabularInline):
         return obj.url.url
 
     def inspect(self, obj):
-        print(f"Inspect called on {obj}")
         return format_html("<a href={}>{}</a>", reverse("admin:storage_crawlableurl_change", args=(obj.url_id,)), str(obj))
 
 
