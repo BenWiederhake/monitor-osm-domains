@@ -1,6 +1,6 @@
 # monitor-osm-domains
 
-This collection of tools monitors all web domains stored in OpenStreetMap data in a certain region. The idea is to collect data over a period of time and conclusively "prove" that a particular link or domain is dead, and will likely never come back.
+This project monitors all web domains stored in OpenStreetMap data in a certain region. The idea is to query these domains every month or so, and collect data over a long period of time. If a server is consistently down for many months, this is strong evidence that a server is dead, and will likely never come back. This evidence can then be used to update the OSM database, possibly even in an automated fashion.
 
 Sure, one could just click a link, see an error, and call it "stale". But that's not good enough, since any error could be temporary. If one can show that an error persists over several months or even years, that feels like sufficient "proof".
 
@@ -35,9 +35,8 @@ The usage instructions of each component can be found in the respective subdirec
 
 ## TODOs
 
-* Write extract
-* Write monosmdom_server
-* Run and monitor for a while
+* Create a nice (leaflet?) frontend to show all results
+* Continue running and monitoring
 * Find a good handful of real results
 * If successful, consider automating removals.
 
