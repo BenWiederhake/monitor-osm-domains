@@ -59,6 +59,29 @@ class CrawlableUrlSelfInline(admin.TabularInline):
         return format_html("<a href={}>{}</a>", reverse("admin:storage_crawlableurl_change", args=(obj.url_id,)), str(obj))
 
 
+class DomainCrawlabilityFilter(admin.SimpleListFilter):
+    title = "crawlability"
+    parameter_name = "crd"  # Only used in the URL
+
+    def lookups(self, _request, _model_admin):
+        return [
+            ("y", "Yes (occurs in OSM)"),
+            ("n", "No (not in OSM)"),
+        ]
+
+    def queryset(self, request, queryset):
+        # TODO: Don't consider "outdated" crawl.models.Result. What is "outdated"?
+        if self.value() == "y":
+            return queryset.filter(
+                crawlableurl__isnull=False,
+            ).distinct()
+        if self.value() == "n":
+            return queryset.filter(
+                crawlableurl__isnull=True,
+            ).distinct()
+        # Return None to indicate fallthrough
+
+
 @admin.register(models.Domain)
 class DomainAdminForm(ReadOnlyModelAdmin):
     empty_value_display = "(never)"
@@ -66,6 +89,7 @@ class DomainAdminForm(ReadOnlyModelAdmin):
     readonly_fields = ["domain_name", "last_contacted"]
     # TODO: Action: Set last_contacted to "now"
     # TODO: Action: Clear last_contacted
+    list_filter = [DomainCrawlabilityFilter]
 
     inlines = [
         CrawlableUrlSelfInline,
