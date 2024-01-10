@@ -28,7 +28,8 @@ urlpatterns = [
     # Pattern must match crawler.models.ResultSuccess.content_file.upload_to:
     re_path(f'^{STRIPPED_MEDIA_URL}/(?P<filepath>{crawl.models.USER_DIRECTORY_PATH_REGEX})$', crawl.views.serve_protected_media, name='serve_protected_media'),
     path(settings.AT_SUBPATH + "/" if settings.AT_SUBPATH else "", include([
-        path('', webui.views.index, name='index'),
+        path("", webui.views.index, name="index"),
+        path("health/", webui.views.health, name="webui_health"),
         path(settings.SECRET_ADMIN_PATH, admin.site.urls),
     ])),
 ]
