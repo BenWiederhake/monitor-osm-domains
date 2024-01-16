@@ -1,22 +1,44 @@
 {% extends "partials/public-facing.html" %}
+{% load static %}
 
 {% block title %}Health – Monitor OSM Domains{% endblock %}
 
 {% block content %}
-  <h2>Health of the Crawler</h2>
+  <h2 id="health">Health of the Crawler</h2>
   <h3>Most Recent Activity</h3>
   <p>The following results are regenerated each time this page is reloaded.</p>
   <table>
     <tr><th>Key</th><th>Value</th></tr>
-    {% for key, value in fresh_stats.items %}
+    {% for key, value in fresh_stats %}
       <tr><td>{{key}}</td><td>{{value}}</td></tr>
     {% endfor %}
   </table>
   {# Link to detections here? #}
 
-  <h3>Statistics</h3>
-  <p>The following results are from FIXMETIME, and are regenerated frequently, but not every time this page is reloaded.</p>
+  <h3>Digestion Statistics</h3>
+  <p>The following results are from {{dh_digestion_begin}}, and are regenerated frequently, but not every time this page is reloaded. Computing the following results took {{dh_digestion_time}}.</p>
+  <h4>State at begin of digestion</h4>
+  <p>Note that small discrepancies from the above values are an indication of health. If they are identical or wildly different, that would be bad.</p>
+  <table>
+    <tr><th>Key</th><th>Value</th></tr>
+    {% for key, value in dh_fresh %}
+      <tr><td>{{key}}</td><td>{{value}}</td></tr>
+    {% endfor %}
+  </table>
+  <h4 id="expensive_stats">Expensive stats</h4>
+  <table>
+    <tr><th>Key</th><th>Value</th></tr>
+    {% for key, value in dh_expensive %}
+      <tr><td>{{key}}</td><td>{{value}}</td></tr>
+    {% endfor %}
+  </table>
+  <h4 id="domain_coverage">Domain coverage history and future prediction</h4>
+  <p>If the two lines basically match, then the crawler is operating mostly smoothly. The slope indicates the speed at which domains are being crawled, which should generally be above 10k per day.</p>
+  <img src="{% static 'domains.png' %}" alt="Dynamically generated graph of how many domains were crawled how quickly, and an optimistic estimation how long it takes to crawl all domains again.">
+
+  <h3>Detection Statistics</h3>
   <p>FIXME</p>
-  <h3>Contact</h3>
+
+  <h3 id="contact">Contact</h3>
   <p>If anything on this page seems out of the ordinary, please make a screenshot or whatever seems out of place and <a href="https://github.com/BenWiederhake/monitor-osm-domains/issues/new">open a new issue</a>.</p>
 {% endblock %}
