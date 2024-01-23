@@ -1,3 +1,5 @@
+from django.core.files.storage import FileSystemStorage
+from django.http import FileResponse
 from django.shortcuts import render
 from monosmdom_server import common
 from webui import logic, models
@@ -5,6 +7,12 @@ from webui import logic, models
 
 def index(request):
     return render(request, "index.html")
+
+
+def serve_domains_png(request):
+    response = FileResponse(FileSystemStorage().open("domains.png"),)
+    response["Content-Disposition"] = "attachment; filename=domains.png"
+    return response
 
 
 def health(request):

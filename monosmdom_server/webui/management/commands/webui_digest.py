@@ -1,4 +1,4 @@
-from django.contrib.staticfiles.storage import StaticFilesStorage
+from django.core.files.storage import FileSystemStorage
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -9,7 +9,7 @@ import datetime
 
 
 def rewrite_coverage_graph():
-    png_filename = StaticFilesStorage().path("domains.png")
+    png_filename = FileSystemStorage().path("domains.png")
     print(f"Rendering begin, to {png_filename}")
     sorted_domain_times, total_domains = render_domain_coverage.fetch_domain_times()
     now = common.now_tzaware() + datetime.timedelta(minutes=2)
