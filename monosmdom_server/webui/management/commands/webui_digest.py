@@ -32,8 +32,6 @@ class Command(BaseCommand):
         with transaction.atomic():
             fresh_json = logic.compute_fresh_stats()
             expensive_json = logic.compute_expensive_stats()
-            # FIXME: Make graph!
-            # FIXME: Compute more expensive stats!
             print("Overwriting webui indices …")
             # FIXME: Actually digest stuff for webui!
             print("Appending to DigestionHealth log …")

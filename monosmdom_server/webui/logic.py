@@ -89,4 +89,5 @@ def compute_expensive_stats():
         stats["Intermediate certs timestamp"] = common.strftime(datetime.datetime.fromtimestamp(combined_pem_stat.st_mtime))
     except:
         stats["Intermediate certs timestamp"] = "ERROR! Could not read file (?!)"
+    # TODO: Further interesting stats?
     return stats
