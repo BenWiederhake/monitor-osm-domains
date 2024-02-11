@@ -129,7 +129,7 @@ class ResultSuccessAdminForm(ReadDeleteOnlyModelAdmin):
     # TODO: content: Show / offer download
     readonly_fields = ["status_code", "headers_storage_size", "headers_orig_size", "content_file", "content_orig_size", "next_url", "next_request"]
 
-    @admin.display(ordering="url__url")
+    @admin.display(ordering="result__url__url")
     def truncated_url(self, obj):
         return obj.result.url.truncated
 
@@ -147,7 +147,7 @@ class ResultErrorAdminForm(ReadDeleteOnlyModelAdmin):
     list_display = ["truncated_url", "is_internal_error", "crawl_begin"]
     readonly_fields = ["is_internal_error", "description_json", "description_json_b64", "show_traceback_code"]
 
-    @admin.display(ordering="url__url")
+    @admin.display(ordering="result__url__url")
     def truncated_url(self, obj):
         return obj.result.url.truncated
 
