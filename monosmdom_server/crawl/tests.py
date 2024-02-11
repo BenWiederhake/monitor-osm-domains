@@ -343,7 +343,7 @@ class CrawlProcessTests(TransactionTestCase):
         some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         grabbed_result = None
         crawl_content = b"Welcome to my wonderful website!"
-        with logic.CrawlProcess(some_crurl) as process:
+        with logic.CrawlProcess(some_url) as process:
             grabbed_result = process.result
             self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
             self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
@@ -375,7 +375,7 @@ class CrawlProcessTests(TransactionTestCase):
         some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         grabbed_result = None
         crawl_content = b"Welcome to my wonderful website!" * 2
-        with logic.CrawlProcess(some_crurl) as process:
+        with logic.CrawlProcess(some_url) as process:
             grabbed_result = process.result
             self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
             self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
@@ -407,7 +407,7 @@ class CrawlProcessTests(TransactionTestCase):
         some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         grabbed_result = None
         crawl_content = b"Welcome to my wonderful website!"
-        with logic.CrawlProcess(some_crurl) as process:
+        with logic.CrawlProcess(some_url) as process:
             grabbed_result = process.result
             self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
             self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
@@ -439,7 +439,7 @@ class CrawlProcessTests(TransactionTestCase):
         some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         grabbed_result = None
         crawl_content = b"Welcome to my wonderful website!"
-        with logic.CrawlProcess(some_crurl) as process:
+        with logic.CrawlProcess(some_url) as process:
             grabbed_result = process.result
             self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
             self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
@@ -463,7 +463,7 @@ class CrawlProcessTests(TransactionTestCase):
         crawl_content = b"Welcome to my wonderful website!"
         got_rethrown = False
         try:
-            with logic.CrawlProcess(some_crurl) as process:
+            with logic.CrawlProcess(some_url) as process:
                 grabbed_result = process.result
                 self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
                 self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])

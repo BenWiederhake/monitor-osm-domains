@@ -2,7 +2,6 @@ from django.db import models
 import storage
 import secrets
 import base64
-import uuid
 
 # Questions that the models shall answer:
 # - Show me the most recent crawling results.
@@ -52,7 +51,7 @@ HEADERS_MAX_LENGTH = 1024
 CONTENT_MAX_LENGTH = 4096
 
 
-USER_DIRECTORY_PATH_REGEX = "res/[2-7A-Z]{2}/[2-7A-Z]{16}\.br"
+USER_DIRECTORY_PATH_REGEX = "res/[2-7A-Z]{2}/[2-7A-Z]{16}\\.br"
 
 
 def user_directory_path(_instance, _filename):

@@ -67,7 +67,7 @@ class ResultMissingEndFilter(admin.SimpleListFilter):
             return queryset.filter(
                 crawl_end__isnull=True,
             )
-        # Return None to indicate fallthrough
+        return None # fall-through
 
 
 class ResultTypeFilter(admin.SimpleListFilter):
@@ -95,7 +95,7 @@ class ResultTypeFilter(admin.SimpleListFilter):
                 resultsuccess__isnull=True,
                 resulterror__isnull=True,
             )
-        # Return None to indicate fallthrough
+        return None # fall-through
 
 
 @admin.register(models.Result)
@@ -158,7 +158,7 @@ class ResultErrorAdminForm(ReadDeleteOnlyModelAdmin):
     def description_json_b64(self, obj):
         return base64.b64encode(obj.description_json.encode())
 
-    def show_traceback_code(self, obj):
+    def show_traceback_code(self, _obj):
         return "print(''.join(base64.b64decode(b64data).decode()['traceback']))"
 
 

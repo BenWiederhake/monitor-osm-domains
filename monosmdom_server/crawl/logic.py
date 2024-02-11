@@ -252,7 +252,7 @@ class CrawlProcess:
     def __exit__(self, type, value, tb):
         assert self.result is not None
         if self.has_submitted:
-            return
+            return None
         self.has_submitted = True  # Are there any edge cases where this is read again?
         description = dict(
             type="exception_or_missing_submit",
@@ -272,7 +272,7 @@ class CrawlProcess:
             self.result.crawl_end = common.now_tzaware()
             self.result.save()
         # Indicate that we did NOT gracefully recover. This will hopefully stop the crawler.
-        return None
+        return False
 
 
 class LeakyBuf:
@@ -300,6 +300,7 @@ class LeakyBuf:
                 self.truncated = True
                 return -1
             # Returning None implies that all bytes were digested
+            return None
         except BaseException as e:
             # Must not raise an exception into the C stack. Save it for re-raising:
             self._exc = e
@@ -319,7 +320,7 @@ class LockedCurl:
         self.c = pycurl.Curl()
         if verbose:
             self.c.setopt(pycurl.VERBOSE, True)
-            print(f"Curl config:")
+            print("Curl config:")
             print(f"  {MAX_HEADER=}")
             print(f"  {MAX_HEADER_STOP_COUNT=}")
             print(f"  {MAX_BODY=}")
