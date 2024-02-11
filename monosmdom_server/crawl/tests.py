@@ -17,13 +17,13 @@ def old_date(extra_days=1):
 
 
 class PickCrawlableUrlTests(TransactionTestCase):
-    def assertRecentDomain(self, domain):
+    def assert_recent_domain(self, domain):
         self.assertIsNotNone(domain.last_contacted, domain)
         upper_bound = common.now_tzaware()
         lower_bound = upper_bound - TEST_DATETIME_EPSILON
         self.assertTrue(lower_bound <= domain.last_contacted <= upper_bound, (domain, domain.last_contacted, upper_bound))
 
-    def assertOldDomain(self, domain, extra_days):
+    def assert_old_domain(self, domain, extra_days):
         self.assertIsNotNone(domain.last_contacted, domain)
         upper_bound = old_date(extra_days)
         lower_bound = upper_bound - TEST_DATETIME_EPSILON
@@ -49,7 +49,7 @@ class PickCrawlableUrlTests(TransactionTestCase):
         self.assertIsNone(picked_crurl)
 
     def test_just_passive_url(self):
-        some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
+        _some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
         storage.models.Url.objects.create(url="httpss./invalid::////:::")
         picked_crurl = logic.pick_and_bump_random_crawlable_url()
         self.assertIsNone(picked_crurl)
@@ -57,7 +57,7 @@ class PickCrawlableUrlTests(TransactionTestCase):
     def test_too_recent_url(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com", last_contacted=common.now_tzaware())
         some_url = storage.models.Url.objects.create(url="https://foo.com/bar/baz")
-        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        _some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         picked_crurl = logic.pick_and_bump_random_crawlable_url()
         self.assertIsNone(picked_crurl)
 
@@ -68,7 +68,7 @@ class PickCrawlableUrlTests(TransactionTestCase):
         picked_crurl = logic.pick_and_bump_random_crawlable_url()
         self.assertEqual(picked_crurl, some_crurl)
         some_domain.refresh_from_db()
-        self.assertRecentDomain(some_domain)
+        self.assert_recent_domain(some_domain)
 
     def test_happy_null_domain1(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
@@ -82,8 +82,8 @@ class PickCrawlableUrlTests(TransactionTestCase):
         self.assertNotEqual(picked_crurl, other_crurl)
         some_domain.refresh_from_db()
         other_domain.refresh_from_db()
-        self.assertRecentDomain(some_domain)
-        self.assertOldDomain(other_domain, 1)
+        self.assert_recent_domain(some_domain)
+        self.assert_old_domain(other_domain, 1)
 
     def test_happy_null_domain2(self):
         # Insertion order might matter.
@@ -99,8 +99,8 @@ class PickCrawlableUrlTests(TransactionTestCase):
         self.assertNotEqual(picked_crurl, some_crurl)
         some_domain.refresh_from_db()
         other_domain.refresh_from_db()
-        self.assertRecentDomain(other_domain)
-        self.assertOldDomain(some_domain, 1)
+        self.assert_recent_domain(other_domain)
+        self.assert_old_domain(some_domain, 1)
 
     def test_happy_old_domain1(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com", last_contacted=old_date(2))
@@ -114,8 +114,8 @@ class PickCrawlableUrlTests(TransactionTestCase):
         self.assertNotEqual(picked_crurl, other_crurl)
         some_domain.refresh_from_db()
         other_domain.refresh_from_db()
-        self.assertRecentDomain(some_domain)
-        self.assertOldDomain(other_domain, 1)
+        self.assert_recent_domain(some_domain)
+        self.assert_old_domain(other_domain, 1)
 
     def test_happy_old_domain2(self):
         # Insertion order might matter.
@@ -131,8 +131,8 @@ class PickCrawlableUrlTests(TransactionTestCase):
         self.assertNotEqual(picked_crurl, some_crurl)
         some_domain.refresh_from_db()
         other_domain.refresh_from_db()
-        self.assertRecentDomain(other_domain)
-        self.assertOldDomain(some_domain, 1)
+        self.assert_recent_domain(other_domain)
+        self.assert_old_domain(some_domain, 1)
 
     def test_happy_null_result1(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
@@ -182,7 +182,7 @@ class PickCrawlableUrlTests(TransactionTestCase):
 
 
 class LossyCompressionTests(TestCase):
-    def assertCompressesAtLeast(self, content_bytes, max_length, saved_bytes_min, saved_bytes_max):
+    def assert_compresses_at_least(self, content_bytes, max_length, saved_bytes_min, saved_bytes_max):
         with self.subTest(content_bytes=content_bytes):
             compressed_bytes = logic.compress_lossy(content_bytes, max_length)
             self.assertLessEqual(len(compressed_bytes), max_length)
@@ -194,18 +194,18 @@ class LossyCompressionTests(TestCase):
     def test_simple(self):
         for length in range(30):
             with self.subTest(length=length):
-                self.assertCompressesAtLeast(b"a" * length, 10, length, length)
+                self.assert_compresses_at_least(b"a" * length, 10, length, length)
 
     def test_bytearray(self):
-        self.assertCompressesAtLeast(bytearray(b"asdfasdfasdfasdf"), 14, 16, 16)
+        self.assert_compresses_at_least(bytearray(b"asdfasdfasdfasdf"), 14, 16, 16)
 
     def test_random(self):
         random_bytes = b"l\xf6\x8f\xa7\xb9\x7f\xb9yi\x81\x0c%(\x0f4.\x0b\xfcL\xc6\xc9\xb6\xa1\xe9\xd8\xf5\xc2\xe9\x15-0v"
         max_savable = 26  # Depends on random_bytes.
         for length in range(len(random_bytes)):
-            expect_bytes = min(length, 26)
+            expect_bytes = min(length, max_savable)
             with self.subTest(length=length):
-                self.assertCompressesAtLeast(random_bytes[:length], 30, expect_bytes, expect_bytes)
+                self.assert_compresses_at_least(random_bytes[:length], 30, expect_bytes, expect_bytes)
 
     def test_real_tiny_caddy(self):
         header = b'Accept-Ranges: bytes\nContent-Length: 2840\nContent-Type: text/html; charset=utf-8\nEtag: "rycylg26w"\nLast-Modified: Tue, 25 Jul 2023 15:20:04 GMT\nServer: Caddy\nDate: Fri, 27 Oct 2023 02:08:02 GMT'
@@ -249,7 +249,7 @@ class LossyCompressionTests(TestCase):
         }
         for target_length, saved_length in target_to_saved.items():
             with self.subTest(target_length=target_length, saved_length=saved_length):
-                self.assertCompressesAtLeast(header, target_length, saved_length, saved_length)
+                self.assert_compresses_at_least(header, target_length, saved_length, saved_length)
 
     def test_real_large_sedo_header(self):
         with open(settings.BASE_DIR / "crawl/testfiles/sedoparking.header.raw", "rb") as fp:
@@ -268,7 +268,7 @@ class LossyCompressionTests(TestCase):
         }
         for target_length, saved_length in target_to_saved.items():
             with self.subTest(target_length=target_length, saved_length=saved_length):
-                self.assertCompressesAtLeast(header, target_length, saved_length, saved_length)
+                self.assert_compresses_at_least(header, target_length, saved_length, saved_length)
 
     def test_real_large_sedo_body(self):
         with open(settings.BASE_DIR / "crawl/testfiles/sedoparking.html.br", "rb") as fp:
@@ -309,12 +309,12 @@ class LossyCompressionTests(TestCase):
         # len(compress(data[15417])) = 4121
         # … (rest is too high)
         # So we might store either 15319 bytes, 15416, or something "random" in between.
-        self.assertCompressesAtLeast(body, 4096, 15319, 15416)
+        self.assert_compresses_at_least(body, 4096, 15319, 15416)
         # That's quite a range! Thankfully, our naive bisecting seems to "hit in the middle":
-        self.assertCompressesAtLeast(body, 4096, 15352, 15352)
-        self.assertCompressesAtLeast(body, 1024, 2357, 2367)
+        self.assert_compresses_at_least(body, 4096, 15352, 15352)
+        self.assert_compresses_at_least(body, 1024, 2357, 2367)
         # Again, pretty much the middle:
-        self.assertCompressesAtLeast(body, 1024, 2364, 2364)
+        self.assert_compresses_at_least(body, 1024, 2364, 2364)
 
 
 class UploadRegexAndFunctionAgree(TestCase):
@@ -340,7 +340,7 @@ class CrawlProcessTests(TransactionTestCase):
     def test_golden(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
         some_url = storage.models.Url.objects.create(url="https://foo.com/")
-        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        _some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         grabbed_result = None
         crawl_content = b"Welcome to my wonderful website!"
         with logic.CrawlProcess(some_url) as process:
@@ -372,7 +372,7 @@ class CrawlProcessTests(TransactionTestCase):
     def test_golden_truncated(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
         some_url = storage.models.Url.objects.create(url="https://foo.com/")
-        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        _some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         grabbed_result = None
         crawl_content = b"Welcome to my wonderful website!" * 2
         with logic.CrawlProcess(some_url) as process:
@@ -404,22 +404,21 @@ class CrawlProcessTests(TransactionTestCase):
     def test_curl_error(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
         some_url = storage.models.Url.objects.create(url="https://foo.com/")
-        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        _some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         grabbed_result = None
-        crawl_content = b"Welcome to my wonderful website!"
         with logic.CrawlProcess(some_url) as process:
             grabbed_result = process.result
             self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
             self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
             self.assertQuerySetEqual(models.ResultError.objects.all(), [])
             self.assertIsNone(grabbed_result.crawl_end)
-            process.submit_error(dict(
-                errcode=1234,
-                errstr="could not avoid connecting to the wrong non-domain",
-                response_code=567,
-                header_size_recv=0,
-                body_size_recv=1,
-            ))
+            process.submit_error({
+                "errcode": 1234,
+                "errstr": "could not avoid connecting to the wrong non-domain",
+                "response_code": 567,
+                "header_size_recv": 0,
+                "body_size_recv": 1,
+            })
             self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
             self.assertQuerySetEqual(models.ResultSuccess.objects.all(), [])
             self.assertEqual(models.ResultError.objects.count(), 1)
@@ -436,9 +435,8 @@ class CrawlProcessTests(TransactionTestCase):
     def test_missing(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
         some_url = storage.models.Url.objects.create(url="https://foo.com/")
-        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        _some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         grabbed_result = None
-        crawl_content = b"Welcome to my wonderful website!"
         with logic.CrawlProcess(some_url) as process:
             grabbed_result = process.result
             self.assertQuerySetEqual(models.Result.objects.all(), [grabbed_result])
@@ -458,9 +456,8 @@ class CrawlProcessTests(TransactionTestCase):
     def test_exception(self):
         some_domain = storage.models.Domain.objects.create(domain_name="foo.com")
         some_url = storage.models.Url.objects.create(url="https://foo.com/")
-        some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
+        _some_crurl = storage.models.CrawlableUrl.objects.create(url=some_url, domain=some_domain)
         grabbed_result = None
-        crawl_content = b"Welcome to my wonderful website!"
         got_rethrown = False
         try:
             with logic.CrawlProcess(some_url) as process:

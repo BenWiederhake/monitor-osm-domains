@@ -56,8 +56,8 @@ def bump_domain(domain):
 
 
 def bump_locked_domain_or_none(domain):
-    # Called by both web UI / commandline ("crawl this URL immediately"), and randomized crawler.
-    # NOTE: The locking mechanics here are finnicky.
+    # Called by both web UI / command-line ("crawl this URL immediately"), and randomized crawler.
+    # NOTE: The locking mechanics here are finicky.
     # Lockless doesn't really work:
     # - That would require switching postgres to IsolationLevel.SERIALIZABLE (by default it is only "read committed", which is NOT sufficient for this purpose).
     # - Also, it would require some kind of automatic retry mechanism, which, ehhhhh.
@@ -286,7 +286,7 @@ class LeakyBuf:
         self.truncated = False
         self._max_save = max_save
         self._stop_count = stop_count
-        self._exc = None
+        self.exception = None
 
     def recv_callback(self, recv_buf):
         try:
@@ -303,7 +303,7 @@ class LeakyBuf:
             return None
         except BaseException as e:
             # Must not raise an exception into the C stack. Save it for re-raising:
-            self._exc = e
+            self.exception = e
             return -1
 
 
@@ -413,20 +413,20 @@ class LockedCurl:
                 # This should be handled outside this "except" block to simplify backtraces.
                 pass
             else:
-                errdict = dict(
-                    errcode=code,
-                    errstr=errstr,
+                errdict = {
+                    "errcode": code,
+                    "errstr": errstr,
                     # curl internally overwrites the response code with 0 before doing anything in
                     # perform(), so this is never outdated:
-                    response_code=self.c.getinfo(pycurl.RESPONSE_CODE),
-                    header_size_recv=result.header.size,
-                    body_size_recv=result.body.size,
-                )
+                    "response_code": self.c.getinfo(pycurl.RESPONSE_CODE),
+                    "header_size_recv": result.header.size,
+                    "body_size_recv": result.body.size,
+                }
                 return None, errdict
-        if result.header._exc is not None:
-            raise result.header._exc
-        if result.body._exc is not None:
-            raise result.body._exc
+        if result.header.exception is not None:
+            raise result.header.exception
+        if result.body.exception is not None:
+            raise result.body.exception
         result.status_code = self.c.getinfo(pycurl.RESPONSE_CODE)
         result.location = self.c.getinfo(pycurl.REDIRECT_URL)
         return result, None

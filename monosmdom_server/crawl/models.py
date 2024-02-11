@@ -44,7 +44,7 @@ import base64
 # {'sedopark': 472, 'sedopark_nocookie': 274, 'gunicorn': 338, 'nextcloud': 829, 'tiny_gunicorn': 183, 'tiny_tl': 168}  # Strictly worse than brotli
 # >>> {k: len(brotli.compress(v)) for k, v in examples.items()}
 # {'sedopark': 412, 'sedopark_nocookie': 216, 'gunicorn': 274, 'nextcloud': 734, 'tiny_gunicorn': 144, 'tiny_tl': 154}
-# So let's use brotli for this particular usecase.
+# So let's use brotli for this particular use-case.
 
 
 HEADERS_MAX_LENGTH = 1024

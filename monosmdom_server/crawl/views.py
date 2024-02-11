@@ -7,7 +7,7 @@ import os.path
 
 
 @login_required()  # TODO: This means everyone with a login, not only admins, can access this.
-def serve_protected_media(request, filepath):
+def serve_protected_media(_request, filepath):
     result_success = get_object_or_404(models.ResultSuccess, content_file=filepath)
 
     _, file_name = os.path.split(filepath)
