@@ -1,5 +1,5 @@
-from django.test import TestCase, TransactionTestCase
-from storage import extract_cleanup, logic, models
+from django.test import TestCase
+from storage import extract_cleanup, logic
 
 
 # Note that the simplification itself is already tested as self-tests during boot of extract_cleanup.py.

@@ -38,7 +38,6 @@ IGNORED_HOSTNAMES = {
     "www.nlwkn.niedersachsen.de", "nlwkn.niedersachsen.de",  # Naturschutzgebiete Niedersachsen, >556 URLs
     # -- I didn't check the following domains, but it seems reasonable to skip them.
     "www.denkmalprojekt.org", "denkmalprojekt.org",  # >486 URLs
-    "denkmalpflege.bremen.de",  # 444 URLs
     "www.aldi-nord.de", "aldi-nord.de", "www.aldi-sued.de", "aldi-sued.de", "aldi.de",  # >438 URLs
     "www.magdeburg.de", "magdeburg.de",  # >415 URLs
     "www.berlin.de", "berlin.de",  # 411 URLs
@@ -55,7 +54,7 @@ IGNORED_HOSTNAMES = {
 
 def get_cached_psl(*, _magic=[]):
     if not _magic:
-        with open(PSL_FILENAME, "r") as fp:
+        with open(PSL_FILENAME, "r", encoding="utf8") as fp:
             _magic.append(publicsuffix2.PublicSuffixList(fp))
     return _magic[0]
 
@@ -112,7 +111,7 @@ class LeafModelBulkCache:
     def upsert_durl(cache, *, url, reason):
         if cache is None:
             durl, created = models.DisasterUrl.objects.get_or_create(
-                url=url, defaults=dict(reason=reason)
+                url=url, defaults={"reason": reason}
             )
             if not created and durl.reason != reason:
                 # Need to overwrite the "wrong" reason:
@@ -126,16 +125,15 @@ class LeafModelBulkCache:
         if cache is None:
             crurl, _created = models.CrawlableUrl.objects.get_or_create(**kwargs)
             return crurl
-        else:
-            # Note: If we use a cache, then we can assume this is a bulk import that already has
-            # been deduplicated.
-            crurl = models.CrawlableUrl(**kwargs)
-            cache.objs_crawlableurl.append(crurl)
-            # We shouldn't return crurl because it does not have an ID yet, and never will have.
-            # We shouldn't return None, because that might be misconstrued as the indication for
-            # disaster. Instead, return a poison value, since in the casae of bulk inserting, the
-            # CrawlableUrl should not be used anyway.
-            return models.CrawlableUrl.DoesNotExist()
+        # Note: If we use a cache, then we can assume this is a bulk import that already has
+        # been deduplicated.
+        crurl = models.CrawlableUrl(**kwargs)
+        cache.objs_crawlableurl.append(crurl)
+        # We shouldn't return crurl because it does not have an ID yet, and never will have.
+        # We shouldn't return None, because that might be misconstrued as the indication for
+        # disaster. Instead, return a poison value, since in the case of bulk inserting, the
+        # CrawlableUrl should not be used anyway.
+        return models.CrawlableUrl.DoesNotExist()
 
     def cache_occ(self, **kwargs):
         occ = models.OccurrenceInOsm(**kwargs)
@@ -205,7 +203,5 @@ def discover_url(url_string, *, mark_crawlable=False, cache=None):
     # === Handle crawlable URL, the only happy path:
     domain_object, _created = models.Domain.objects.get_or_create(domain_name=second_level_domain)
     if mark_crawlable:
-        crawlable_object = LeafModelBulkCache.upsert_crurl_via(cache, url=url_object, domain=domain_object)
-    else:
-        crawlable_object = None
+        _crawlable_object = LeafModelBulkCache.upsert_crurl_via(cache, url=url_object, domain=domain_object)
     return MaybeCrawlableResult(url_object, domain_object, True)

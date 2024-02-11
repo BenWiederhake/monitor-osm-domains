@@ -13,12 +13,11 @@ import crawl
 def item_type_to_name(item_type_char):
     if item_type_char == "n":
         return "node"
-    elif item_type_char == "w":
+    if item_type_char == "w":
         return "way"
-    elif item_type_char == "r":
+    if item_type_char == "r":
         return "relation"
-    else:
-        return f"ERROR{item_type_char}"
+    return f"ERROR{item_type_char}"
 
 
 # TODO: This should live somewhere else.
@@ -78,7 +77,7 @@ class DomainCrawlabilityFilter(admin.SimpleListFilter):
             return queryset.filter(
                 crawlableurl__isnull=True,
             ).distinct()
-        # Return None to indicate fallthrough
+        return None  # fall-through
 
 
 @admin.register(models.Domain)
@@ -177,7 +176,7 @@ class UrlTypeFilter(admin.SimpleListFilter):
                 disasterurl__isnull=True,
                 crawlableurl__isnull=True,
             )
-        # Return None to indicate fallthrough
+        return None  # fall-through
 
 
 class UrlRedirInFilter(admin.SimpleListFilter):
@@ -200,7 +199,7 @@ class UrlRedirInFilter(admin.SimpleListFilter):
             return queryset.filter(
                 resultsuccess__isnull=True,
             ).distinct()
-        # Return None to indicate fallthrough
+        return None  # fall-through
 
 
 class UrlRedirOutFilter(admin.SimpleListFilter):
@@ -223,7 +222,7 @@ class UrlRedirOutFilter(admin.SimpleListFilter):
             return queryset.filter(
                 result__resultsuccess__next_url__isnull=True,
             ).distinct()
-        # Return None to indicate fallthrough
+        return None  # fall-through
 
 
 @admin.register(models.Url)
@@ -243,7 +242,7 @@ class UrlAdminForm(ReadOnlyModelAdmin):
         UrlRedirOutFilter,
     ]
 
-    def has_add_permission(self, request, obj=None):
+    def has_add_permission(self, request):
         # Imports/discoveries shouldn't go through the admin interface.
         return False
 
