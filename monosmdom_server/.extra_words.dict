@@ -9,6 +9,7 @@ classmethod
 config
 crawlable
 crurl
+CSV
 de
 deduplicate
 deduplicated
@@ -73,6 +74,7 @@ Url
 webpages
 webserver
 webservers
+webui
 wtf
 wuppertal
 Wuppertal
