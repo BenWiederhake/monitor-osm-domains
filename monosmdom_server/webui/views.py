@@ -11,7 +11,6 @@ def index(request):
 
 def serve_domains_png(request):
     response = FileResponse(FileSystemStorage().open("domains.png"),)
-    response["Content-Disposition"] = "attachment; filename=domains.png"
     return response
 
 
