@@ -47,7 +47,7 @@ def crawl_prepared_url(crawl_url_obj, curl_wrapper):
                     use_url = result.location[:1023]
                     # We don't want to mark any redirect-target as a CrawlableUrl,
                     # since we only indirectly care about that URL.
-                    maybe_next_crawlable = storage.logic.discover_url(result.location, mark_crawlable=False)
+                    maybe_next_crawlable = storage.logic.discover_url(use_url, mark_crawlable=False)
                     next_url_obj = maybe_next_crawlable.url_obj  # FIXME
                     # If a redirect to a valid URL that we want to crawl, continue there:
                     if maybe_next_crawlable.want_to_crawl:

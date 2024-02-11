@@ -25,7 +25,7 @@ import webui.views
 STRIPPED_MEDIA_URL = settings.MEDIA_URL.strip("/")
 
 urlpatterns = [
-    re_path(f'assets/domains.png$', webui.views.serve_domains_png, name='domains.png'),
+    re_path("assets/domains.png$", webui.views.serve_domains_png, name="domains.png"),
     # Pattern must match crawler.models.ResultSuccess.content_file.upload_to:
     re_path(f'^{STRIPPED_MEDIA_URL}/(?P<filepath>{crawl.models.USER_DIRECTORY_PATH_REGEX})$', crawl.views.serve_protected_media, name='serve_protected_media'),
     path(settings.AT_SUBPATH + "/" if settings.AT_SUBPATH else "", include([

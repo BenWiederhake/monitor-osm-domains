@@ -2,7 +2,6 @@
 
 from crawl import models
 from django.core.management.base import BaseCommand
-from monosmdom_server import common
 import os.path
 import random
 import time
@@ -30,7 +29,7 @@ class Command(BaseCommand):
     help = "Clear FileField cells that point to deleted files."
 
     def handle(self, **options):
-        print(f"Collecting …")
+        print("Collecting …")
         collected = []
         total_considered = 0
         # Skip those which have no file associated anyway:
@@ -56,7 +55,7 @@ class Command(BaseCommand):
             return
         print(f"Would clear {len(collected)} references to missing files, e.g. {collected[0].content_file} in {collected[0]}.")
         if not get_confirmation():
-            print(f"Not updating (aborted by user)")
+            print("Not updating (aborted by user)")
             return
         print(f"Updating {len(collected)} rows …")
         t1 = time.time()

@@ -6,7 +6,6 @@ import crawl.models
 import json
 import random
 import datetime
-import urllib.parse
 
 
 REPORT_PERCENT_STEP = 2  # Must be a divisor of 100
@@ -130,10 +129,10 @@ def update_osm_state(disasters, simplified_urls):
     # No need to touch CrawlResult, CrawlResultSuccess, CrawlResultError at all.
     # We completely delete and re-write the tables CrawlableUrl, DisasterUrl, OccurrenceInOsm.
     # The tables Domain and Url are extended, and existing data remains untouched.
-    print(f"    Wiping old OSM state (tables CrawlableUrl, OccurrenceInOsm) …")
+    print("    Wiping old OSM state (tables CrawlableUrl, OccurrenceInOsm) …")
     models.CrawlableUrl.objects.all().delete()
     models.OccurrenceInOsm.objects.all().delete()
-    print(f"    Importing disaster URLs …")
+    print("    Importing disaster URLs …")
     # How to import the data performantly?
     # - Ideally, we would use some kind of "automatic bulk upsert" scheme, that magically deals with
     #   foreign keys. That does not exist, however.
@@ -155,7 +154,7 @@ def update_osm_state(disasters, simplified_urls):
             logic.LeafModelBulkCache.upsert_durl(cache, url=url_object, reason=disaster_reason)
         for occ_dict in disaster_context["occs"]:
             register_occurrence(url_object, occ_dict, cache)
-    print(f"    Importing and checking simplified URLs …")
+    print("    Importing and checking simplified URLs …")
     done_items = 0
     percent_last_reported = 0
     percent_step_began = common.now_tzaware()
@@ -215,7 +214,7 @@ class Command(BaseCommand):
 
     def handle(self, *, urlfile, force, **options):
         assert force is None or force == "OVERWRITE"
-        print(f"Initializing PSL …")
+        print("Initializing PSL …")
         logic.get_cached_psl()
 
         print(f"Reading {urlfile=} …")
@@ -225,7 +224,7 @@ class Command(BaseCommand):
             import_begin = common.now_tzaware()
             summary_before = show_summary("before")
             print(f"Importing at least {len(disasters)} disasters and at most {len(simplified_urls)} crawlable URLs …")
-            print(f"    (Numbers might change slightly due to ignored or unregistered domains.)")
+            print("    (Numbers might change slightly due to ignored or unregistered domains.)")
             update_osm_state(disasters, simplified_urls)
             summary_after = show_summary("after")
             additional_data = dict(

@@ -37,7 +37,7 @@ def fetch_domain_times():
     print(f"  Got {len(domain_time_tuples)} results. Unpacking …")
     domain_times = [last_contacted for (last_contacted,) in domain_time_tuples if last_contacted is not None]
     print(f"  got {domains_uncontacted} uncontacted domains and {len(domain_times)} datetimes (e.g. {domain_times[0]}).")
-    print(f"  Sorting …")
+    print("  Sorting …")
     domain_times.sort(reverse=True)
     print(f"  Percentiles are 0%={domain_times[0]}, 50%={domain_times[len(domain_times) // 2]}, 100%={domain_times[-1]}.")
     return domain_times, (domains_uncontacted + len(domain_times))
@@ -128,7 +128,7 @@ class Command(BaseCommand):
             assert not os.path.exists(to_csv_file), f"File {to_csv_file} already exists, refusing to overwrite!"
         print("Fetching domain data …")
         sorted_domain_times, total_domains = fetch_domain_times()
-        print(f"Computing coverage curve and best-case prediction …")
+        print("Computing coverage curve and best-case prediction …")
         if now is None:
             # Note: Since the database might return ultra-fresh results, we cannot determine "now"
             # before the query has finished. Likewise, if we assume that by pure chance we receive
@@ -138,7 +138,7 @@ class Command(BaseCommand):
             now = common.now_tzaware() + datetime.timedelta(minutes=2)
         cumulative_coverage, best_case_duration = compute_coverage(sorted_domain_times, now, total_domains)
         if to_csv_file is None:
-            print(f"Writing CSV to temporary file …")
+            print("Writing CSV to temporary file …")
         else:
             print(f"Writing CSV to file {to_csv_file} …")
         with open_or_temporary(to_csv_file) as fp:
@@ -151,6 +151,6 @@ class Command(BaseCommand):
                 print(f"Writing PNG to {to_png_file} …")
                 run_gnuplot(to_csv_file, to_png_file)
             if show_gnuplot:
-                print(f"Showing interactively …")
+                print("Showing interactively …")
                 run_gnuplot(to_csv_file, None)
-        print(f"Done with rendering!")
+        print("Done with rendering!")

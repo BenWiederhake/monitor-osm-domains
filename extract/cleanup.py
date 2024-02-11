@@ -168,23 +168,23 @@ def simplified_url_or_disaster_reason(parse_url):
     if parts.scheme not in ["http", "https"]:
         return None, f"unusual scheme {parts.scheme}"
     if parts.username is not None or parts.password is not None:
-        return None, f"contains login information, not crawling"
+        return None, "contains login information, not crawling"
     # Accessing the 'port' property raises an exception in invalid URLs -.-
     try:
         port_number = parts.port
     except ValueError:
-        return None, f"port is not a valid integer"
+        return None, "port is not a valid integer"
     port_string = ""
-    if parts.port is not None:
+    if port_number is not None:
         # Using ports is highly questionable, and I would love to mark it disastrous.
         # However, a disturbingly high number of servers redirect e.g.
         # from "https://example.com/" to "https://example.com:443/". So we have to permit it.
-        if parts.scheme == "http" and parts.port == 80:
+        if parts.scheme == "http" and port_number == 80:
             port_string = ":80"
-        elif parts.scheme == "https" and parts.port == 443:
+        elif parts.scheme == "https" and port_number == 443:
             port_string = ":443"
         else:
-            return None, f"refusing to use forced port {parts.port}"
+            return None, f"refusing to use forced port {port_number}"
     hostname = parts.hostname
     if hostname is not None:
         # Despite the documentation, the hostname is NOT always lowercase. Example:
@@ -224,7 +224,6 @@ def simplified_url_or_disaster_reason(parse_url):
 def simplify_semantically(by_regexed_url, disasters):
     by_simplified_url = defaultdict(list)  # Simplified URL string to list of occurrence-objects
     all_seen_chars = Counter()
-    usable_hostnames = set()
     for parse_url, occs in by_regexed_url.items():
         simplified_url, disaster_reason = simplified_url_or_disaster_reason(parse_url)
         assert (simplified_url is None) != (disaster_reason is None), parse_url
@@ -274,7 +273,7 @@ def cleanup(data):
         del all_seen_chars[boring_char]
     interesting_chars = list(all_seen_chars.most_common())
     if interesting_chars:
-        print(f"Saw some funky characters:")
+        print("Saw some funky characters:")
         for char, count in interesting_chars:
             print(f"    {count} times >>{char}<< → {str(char.encode())}")
 
@@ -288,7 +287,7 @@ def run(input_filename, output_filename):
     print(f"Writing to {output_filename} …")
     with open(output_filename, "w") as fp:
         json.dump(data, fp, cls=DisasterEncoder)
-    print(f"All done! Results written to file.")
+    print("All done! Results written to file.")
 
 
 if __name__ == "__main__":
