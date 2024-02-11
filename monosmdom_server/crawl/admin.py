@@ -160,3 +160,17 @@ class ResultErrorAdminForm(ReadDeleteOnlyModelAdmin):
 
     def show_traceback_code(self, obj):
         return "print(''.join(base64.b64decode(b64data).decode()['traceback']))"
+
+
+@admin.register(models.SquatProof)
+class SquatProofAdminForm(ReadDeleteOnlyModelAdmin):
+    list_display = ["crawl_begin", "truncated_url", "squatter"]
+    readonly_fields = ["crawl_begin", "truncated_url", "squatter"]
+
+    @admin.display(ordering="evidence__result__url__url")
+    def truncated_url(self, obj):
+        return obj.evidence.result.url.truncated
+
+    @admin.display(ordering="evidence__result__crawl_begin")
+    def crawl_begin(self, obj):
+        return obj.evidence.result.crawl_begin

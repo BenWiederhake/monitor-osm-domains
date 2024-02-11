@@ -136,3 +136,11 @@ class ResultError(models.Model):
 
     def __str__(self):
         return f"<ResultError#{self.result_id} {self.result.url.truncated}>"
+
+
+class SquatProof(models.Model):
+    evidence = models.OneToOneField(ResultSuccess, on_delete=models.RESTRICT)
+    squatter = models.TextField()
+
+    def __str__(self):
+        return f"<SquatProof#{self.id} {self.evidence.result.url.truncated}>"
