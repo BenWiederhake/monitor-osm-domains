@@ -54,11 +54,12 @@ def compute_expensive_stats():
     # Slowest result in the last 7 days
     # TODO: Also for the last 24 hours?
     seven_days_ago = common.now_tzaware() - datetime.timedelta(days=7)
-    slowest_week = crawl.models.Result.objects.filter(crawl_begin__gt=seven_days_ago, crawl_end__isnull=False).order_by(F("crawl_begin") - F("crawl_end"))[: 1]
-    if len(slowest_week) == 0:
-        stats["Slowest crawl in the last seven days"] = "Doesn't exist?!"
+    slowest_weeks = crawl.models.Result.objects.filter(crawl_begin__gt=seven_days_ago, crawl_end__isnull=False).order_by(F("crawl_begin") - F("crawl_end"))[: 1]
+    if len(slowest_weeks) == 0:
+        stats["Slowest crawl in the last seven days"] = "No results in 7 days?!"
     else:
-        stats["Slowest crawl in the last seven days"] = f"{slowest_week.crawl_end - slowest_week.crawl_begin} {recent_internal.result.url}"
+        slowest_week = slowest_weeks[0]
+        stats["Slowest crawl in the last seven days"] = f"{slowest_week.crawl_end - slowest_week.crawl_begin} {slowest_week.url}"
     # incomplete redirect-chain in the last 7 days
     # TODO: longest redirect-chain in the last 7 days
     aborted_chain = crawl.models.ResultSuccess.objects.filter(next_url__isnull=False, next_request__isnull=True).order_by("-result__crawl_begin")[: 1]
