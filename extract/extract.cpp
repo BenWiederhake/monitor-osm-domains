@@ -109,8 +109,10 @@ static const HardcodedLocation HARDCODED_RELATION_LOCATIONS[] = {
     {9351571, 12.179740, 47.599290}, // 1302 backrefs
     {9351572, 12.952523, 47.768681}, // 1741 backrefs
     {11305708, 6.224311, 51.359232}, // 1331 backrefs
-    {13971563, 7.651894, 49.044413} // 1636 backrefs
-    // In total, this small table prevents 6.4% of all backrefs!
+    {13971563, 7.651894, 49.044413}, // 1636 backrefs
+    {37360, 9.169024, 47.655776}, // 2162 backrefs
+    {371740, 9.162751, 47.659689} // 1899 backrefs
+    // In total, this small table prevents >6% of all backrefs!
 };
 
 static bool looks_like_url(char const* const str) {
@@ -292,7 +294,7 @@ public:
                 printf("\nWARNING: Cannot resolve object %c%lu to any location?!\n\n", osmium::item_type_to_char(obj.type()), obj.id());
                 location = osmium::Location(10.0, 50.0);
             }
-            if (backrefs_this > 1000) {
+            if (backrefs_this > 500) {
                 printf(
                     "WARNING: Very expensive resolution: %c%lu took %lu backrefs?! Consider hardcoding to %f, %f  \n",
                     osmium::item_type_to_char(obj.type()), obj.id(), backrefs_this,
