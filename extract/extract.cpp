@@ -134,8 +134,11 @@ static const HardcodedLocation HARDCODED_RELATION_LOCATIONS[] = {
     {13909415, 6.135678, 50.147284}, // 852 backrefs
     {14018636, 6.135678, 50.147284}, // 855 backrefs
     {15887497, 12.101126, 54.152675}, // 630 backrefs
-    {15887498, 12.101126, 54.152675} // 631 backrefs
-    // In total, this small table prevents >6% of all backrefs!
+    {15887498, 12.101126, 54.152675}, // 631 backrefs
+    {111437, 14.408661, 53.335781}, // Added 2026-09-20 (deep)
+    {448328, 7.577080, 48.019861}, // Added 2026-09-20 (deep)
+    {5501883, 44.2848969, 1.5206935}, // Added 2026-09-20 (cycle?!)
+    {1534076, 7.199950, 53.177366}
 };
 
 static bool looks_like_url(char const* const str) {
@@ -280,6 +283,7 @@ class FindUrlHandler : public osmium::handler::Handler {
     osmium::item_type m_most_expensive_type {osmium::item_type::undefined};
     osmium::object_id_type m_most_expensive_id {0};
     size_t m_most_expensive_backrefs {0};
+    std::unordered_set<osmium::object_id_type> m_relations_on_stack;
 
 public:
     FindUrlHandler(osmium::io::CachedRandomAccessPbf& resolver) :
@@ -347,6 +351,33 @@ public:
 
 private:
     osmium::Location resolve_relation(osmium::Relation const& relation) {
+        {
+            auto result = m_relations_on_stack.emplace(relation.id());
+            bool was_fresh_insert = result.second;
+            if (!was_fresh_insert) {
+                printf("Trying to recurse on relation ID %ld although it is already on stack!\nOn stack: {", relation.id());
+                for (auto stack_relation_id : m_relations_on_stack) {
+                    printf("%ld, ", stack_relation_id);
+                }
+                printf("}\n");
+                // No good "Location" associated. Ugh.
+                abort();
+            }
+            // Cannot use returned iterator for deletion, since modification invalidates iterators.
+        }
+        struct RemoveEntryOnExit {
+            std::unordered_set<osmium::object_id_type>& m_set;
+            osmium::object_id_type m_entry;
+
+            ~RemoveEntryOnExit() {
+                size_t num_removed = m_set.erase(m_entry);
+                if (num_removed != 1) {
+                    printf("Unwinding broke?! Expected to remove one entry, instead removed %ld?!\n",
+                        num_removed);
+                    abort();
+                }
+            }
+        } guard_relation { m_relations_on_stack, relation.id() };
         for (auto const& hardcoded_location : HARDCODED_RELATION_LOCATIONS) {
             if (relation.id() == hardcoded_location.id) {
                 return osmium::Location(hardcoded_location.x, hardcoded_location.y);

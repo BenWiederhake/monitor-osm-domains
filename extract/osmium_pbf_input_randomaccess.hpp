@@ -102,7 +102,11 @@ namespace osmium {
                     if (read_size == 0) { // EOF
                         return false;
                     }
-                    to_read -= read_size;
+                    if (read_size < 0) {
+                        printf("Erroneous read, got %ld\n", read_size);
+                        abort();
+                    }
+                    to_read -= static_cast<std::size_t>(read_size);
                 }
 
                 return true;
@@ -112,7 +116,7 @@ namespace osmium {
              * Read 4 bytes in network byte order from file. They contain
              * the length of the following BlobHeader.
              */
-            uint32_t read_blob_header_size_from_file(int fd) {
+            static uint32_t read_blob_header_size_from_file(int fd) {
                 std::array<char, sizeof(uint32_t)> buffer{};
                 if (!detail::read_exactly(fd, buffer.data(), buffer.size())) {
                     throw osmium::pbf_error{"unexpected EOF in blob header size"};
